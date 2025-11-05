@@ -1,0 +1,228 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Generador de TAG — Múltiples filas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    :root{
+      --font-size: 12px;
+      --cell-pad: 4px 6px;
+      --colw: 88px;
+      --tagw: 260px;
+      --descw: 420px;   /* ancho Descripción */
+      --actionsw: 90px;
+      --repw: 54px;
+      --refw: 320px;    /* REF más ancha */
+    }
+    body { font-family: system-ui, Arial, sans-serif; margin: 16px; font-size: var(--font-size); }
+    .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+    button, select, input, textarea { padding:6px; font-size: var(--font-size); }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    thead th { position: sticky; top:0; background:#fff; z-index:1; }
+    th, td { border-bottom:1px solid #eee; padding: var(--cell-pad); text-align:left; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    th.col, td.col       { width: var(--colw); }
+    th.tagcol, td.tagcol { width: var(--tagw); }
+    th.desccol, td.desccol { width: var(--descw); }
+    th.actcol, td.actcol { width: var(--actionsw); }
+    th.repcol, td.repcol { width: var(--repw); text-align:center; }
+    th.refcol, td.refcol { width: var(--refw); }
+    td select, td input, td textarea { width: 100%; min-width: 0; }
+    .muted { color:#666; }
+    .nowrap { white-space: nowrap; }
+    td.refcol { white-space: normal; }
+    td.refcol textarea.refinput {
+      width: 100%;
+      min-height: 2.2em;
+      max-height: 8.5em;
+      resize: vertical;
+      overflow: auto;
+      line-height: 1.2;
+      font: inherit;
+      box-sizing: border-box;
+      white-space: pre-wrap;
+    }
+    @media (max-width: 1440px){
+      :root{ --font-size: 12px; --colw: 80px; --tagw: 220px; --descw: 360px; --actionsw: 80px; --repw: 48px; }
+    }
+  </style>
+</head>
+<body>
+  <h1 style="margin:0 0 8px;">Generador de TAG</h1>
+  <p class="muted" style="margin:0 0 12px;">
+    Formato: <code>[TIPO][LUGAR].[SIGLAS].[NIVEL][DISPOSITIVO][PROTECCION_SECUNDARIA][QUE][SEÑAL][NUMERO]</code>
+  </p>
+
+  <div class="toolbar">
+        
+    
+
+    <button id="add">+ Agregar fila</button>
+    <button id="dup">Duplicar última</button>
+    <button id="clear">Vaciar todo</button>
+    <button id="exportCsv">⬇️ Exportar CSV</button>
+    <button id="pasteMulti">📋 Pegar (multi)</button>
+    <button id="tpl2Open" type="button" onclick="TPL2.open()">TEMPLATES</button>
+
+    <a href="/tables">🔧 Ver / Editar listas</a>
+    <a href="/export/listas.zip" class="nowrap">⬇️ Exportar Listas+Reglas</a>
+
+    <label style="display:flex; align-items:center; gap:6px; margin-left:8px;">
+      <input type="checkbox" id="toggleCompact" checked>
+      Modo compacto
+    </label>
+  </div>
+
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th class="col refcol">REF</th>
+        <th class="col">TIPO</th>
+        <th class="col">LUGAR</th>
+        <th class="col">OBJETO</th>
+        <th class="col">SIGLAS</th>
+        <th class="col">NIVEL</th>
+        <th class="col">DISPOSITIVO</th>
+        <th class="col">PROT. SEC.</th>
+        <th class="col">QUE</th>
+        <th class="col">SEÑAL</th>
+        <th class="col">NUMERO</th>
+        <th class="tagcol">TAG</th>
+        <th class="desccol">DESCRIPCION</th>
+        <th class="repcol">REP</th>
+        <th class="actcol"></th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <h2 style="margin-top:18px;">Notas/Reglas</h2>
+  <ul>
+    {% for r in reglas %}<li>{{ r }}</li>{% endfor %}
+  </ul>
+
+  <!-- Modal para pegado masivo -->
+  <div id="pasteModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.25); align-items:center; justify-content:center; z-index:9999;">
+    <div style="background:#fff; padding:16px; border-radius:10px; width: min(900px, 92vw); box-shadow:0 8px 40px rgba(0,0,0,.2);">
+      <h3 style="margin-top:0">Pegar filas (Excel / CSV / TXT)</h3>
+      <p class="muted" style="margin:6px 0 8px">
+        Orden esperado: <code>REF, TIPO, LUGAR, OBJETO, SIGLAS, NIVEL, DISPOSITIVO, PROTECCION SECUNDARIA, QUE, SEÑAL, NUMERO</code>
+      </p>
+      <textarea id="pasteArea" rows="12" style="width:100%; font-family:monospace; font-size:12px;"></textarea>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:10px;">
+        <button id="pasteCancel">Cancelar</button>
+        <button id="pasteApply">Agregar filas</button>
+      </div>
+    </div>
+  </div>
+
+  <script>const FAMILIAS = {{ familias|tojson }};</script>
+
+  <!-- TEMPLATES v2 (DISPOSITIVO / PROT. SEC. / QUE / SEÑAL) -->
+<dialog id="tpl2Dialog" style="max-width:95vw;width:95vw;">
+  <form method="dialog" style="margin:0;padding:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <h3 style="margin:0">Templates de Equipos</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+
+        <button id="tpl2New" type="button" onclick="TPL2.startNew()">Nuevo</button>
+        <button id="tpl2Edit" type="button" onclick="TPL2.startEdit()">Editar</button>
+        <button id="tpl2Delete" type="button" onclick="TPL2.delete()">Eliminar</button>
+        <button id="tpl2Export" type="button" onclick="TPL2.export()">Exportar</button>
+
+        <label style="display:inline-flex;gap:6px;align-items:center;">
+        <input id="tpl2ImportFile" type="file" accept="application/json" style="display:none"
+         onchange="if(this.files&&this.files[0]){TPL2.import(this.files[0]); this.value='';}">
+        <span style="border:1px solid #ccc;padding:6px 10px;border-radius:6px;cursor:pointer;"
+        onclick="document.getElementById('tpl2ImportFile').click()">Importar</span>
+        </label>
+
+        <button id="tpl2Close" type="button" onclick="TPL2.close()">Cerrar</button>
+
+
+          <!-- <label style="display:inline-flex;gap:6px;align-items:center;">
+          <input id="tpl2ImportFile" type="file" accept="application/json" style="display:none">
+          <span style="border:1px solid #ccc;padding:6px 10px;border-radius:6px;cursor:pointer;"
+          onclick="document.getElementById('tpl2ImportFile').click()">Importar</span>
+          </label>
+          <button id="tpl2Close"  type="button">Cerrar</button> -->
+          </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+      <!-- Lista -->
+      <div class="card" style="max-height:420px;overflow:auto">
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input id="tpl2Search" placeholder="Buscar…" style="flex:1;padding:8px">
+        </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr><th>Equipo</th><th>Descripción</th><th></th></tr></thead>
+          <tbody id="tpl2List"></tbody>
+        </table>
+      </div>
+
+      <!-- Vista previa -->
+      <div class="card" style="max-height:420px;overflow:auto">
+        <h4 style="margin:0 0 6px">Vista previa</h4>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr>
+            <th>#</th><th>DISPOSITIVO</th><th>PROT. SEC.</th><th>QUE</th><th>SEÑAL</th>
+          </tr></thead>
+          <tbody id="tpl2Preview"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <button id="tpl2Apply" type="button"
+        style="background:#0a7; color:white; padding:8px 12px; border-radius:6px;"
+        onclick="TPL2.apply()">
+        Aplicar al generador
+    </button>
+    </div>
+
+    <!-- Editor simple (4 columnas) -->
+    <div id="tpl2Editor" class="card" style="margin-top:12px;display:none">
+      <h4 style="margin:0 0 8px">Editar / Crear equipo</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div><label>Nombre</label><input id="tpl2FormNombre" style="width:100%;padding:8px"></div>
+        <div><label>Tags</label><input id="tpl2FormTags" style="width:100%;padding:8px" placeholder="MT, Protección, …"></div>
+      </div>
+      <div style="margin-top:8px;">
+        <label>Descripción</label>
+        <textarea id="tpl2FormDesc" rows="2" style="width:100%;padding:8px"></textarea>
+      </div>
+
+      <div style="margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label>Filas del template (DISPOSITIVO / PROT. SEC. / QUE / SEÑAL)</label>
+          <button id="tpl2AddItem" type="button" onclick="TPL2.addItemRow({})">Agregar fila</button>
+        </div>
+        <div style="overflow:auto;max-height:40vh;">
+          <table style="width:1050px;border-collapse:collapse;margin-top:6px;font-size:12px;">
+            <thead><tr>
+              <th style="width:32px">#</th>
+              <th style="min-width:240px">DISPOSITIVO</th>
+              <th style="min-width:240px">PROTECCION SECUNDARIA</th>
+              <th style="min-width:240px">QUE</th>
+              <th style="min-width:240px">SEÑAL</th>
+              <th style="width:70px"></th>
+            </tr></thead>
+            <tbody id="tpl2Items"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+          <button id="tpl2CancelEdit" type="button" onclick="document.getElementById('tpl2Editor').style.display='none'">Cancelar</button>
+          <button id="tpl2Save" type="button" style="background:#06c;color:#fff;padding:8px 12px;border-radius:6px;"
+        onclick="TPL2.saveEdit()">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+
+
+  <script src="/static/main.js"></script>
+</body>
+</html>

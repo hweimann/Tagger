@@ -1,0 +1,16 @@
+Regla
+Reglas
+"TIPO: MENU DESPLEGABLE que se obtiene de la tabla TIPO: se coloca si es una Estacion Transformadora, Centro distribuidor o Centro de maniobra cada una tine sus caracteres asociados según tabla TIPOS de la pestaña LISTAS"
+"LUGAR: MENU DESPLEGABLE que se obtiene de la tabla LUGAR: se coloca el nombre del lugar, cada lugar tiene sus caracteres definidos según la tabla LUGARES de la pestaña LISTAS"
+OBJETO: MENU DESPLEGABLE que se obtiene de la tabla OBJETO:
+"si es una CELDA: en la columna ""SIGLAS"" se colocan las siglas asociadas al Lugar y 2 numeros el primero es el nivel de tension y el segundo es la numeracion de la celda"
+"si es un TRANSFORMADOR: en la columna ""SIGLAS"" se coloca las siglas de trasformador TR y la numeracion de dicho trasformador. Y en la columna ""Nivel de Tension"" se coloca 13kv, 33kv, 132kv o 500kv"
+"si es una LINEA: en la columna ""SIGLAS"" se coloca lasa siglas de Linea: LAT si es alta tension, LMT si es media tension y a continuacion se coloca las siglas del lugar hacia donde va esa linea"
+"si es una señal GENERAL: hace referencia a una señal que no esta asociada directamente a una CELDA, TRANSFORMADOR o una LINEA"
+SIGLAS: ESCRITURA MANUAL: Siglas referidas al OBJETO anteriormente definido
+NIVEL DE TENSION: MENU DESPLEGABLE que se obtiene de la tabla NIVEL DE TENSION: Solo se coloca el nivel de tension cuando se trata de una señal proveniente de un OBJETO: TRASFORMADOR
+"DISPOSITIVO: MENU DESPLEGABLE que se obtiene de la tabla DISPOSITIVO: Hace referencia a que dispositivo se trata la señal, puede ser una proteccion, un multimedidor, un equipo de maniobra, etc"
+PROTECCION SECUNDARIA: MENU DESPLEGABLE que se obtiene de la tabla PROTECCION SECUNDARIA: Hace referencia a la proteccion secuandaria interna dl dispositivo anteriormente definido
+QUE: MENU DESPLEGABLE que se obtiene de la tabla QUE: Hace referencia a lo que representa espefisicamente esa señal en particular
+SEÑAL: MENU DESPLEGABLE que se obtiene de la tabla SEÑAL: Complementa la definicion hecha con la tabla QUE
+NUMERO: MENU DESPLEGABLE que se obtiene de la tabla NUMERO: Se utiliza cuando existe redundancia de señales o hay dos equipos que tienen las mismas señales pero estan ubicados en distintos espacios

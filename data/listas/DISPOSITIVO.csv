@@ -1,0 +1,121 @@
+Valor,Código
+13.2kv,1_
+132kv,3_
+33kv,2_
+Bajo carga (-),96-
+Bajo carga,96_
+Desconexion automatica de generacion,DAG_
+Distorsion demanda total,TDD_
+Estado de proteccion de tierra de un IED de sobrecorriente de 13.2kv,151N-PROT_
+Estado de proteccion de tierra de un IED de sobrecorriente de 33kv,251N-PROT_
+Estado de proteccion de tierra de un IED de sobrecorriente,51N-PROT_
+Estado de proteccion de un IED de sobrecorriente de 13.2kv,151-PROT_
+Estado de proteccion de un IED de sobrecorriente de 33kv,251-PROT_
+Estado de proteccion de un IED de sobrecorriente,51-PROT_
+Estado de proteccion frecuencia,81-PROT_
+IED de distancia (-),21-
+IED de distancia,21_
+IED de sobrecorriente 13.2kv señal cableada,151-
+IED de sobrecorriente 132kv señal cableada,351-
+IED de sobrecorriente 33kv señal cableada,251-
+IED de sobrecorriente Medicion 13.2kv,51_1
+IED de sobrecorriente Medicion 132kv,51_3
+IED de sobrecorriente Medicion 33kv,51_2
+IED de sobrecorriente señal cableada,51-
+IED diferencial (-),87-
+IED diferencial,87_
+Interruptor de Trafo 33kv,252_
+Interruptor de Trafo de 13.2kv,152_
+Interruptor de Trafo de 132kv,352_
+Interruptor movil siemens,SMV_
+Interruptor señal cableada,52-
+Interruptor,52_
+Multimedidor 13.2kv,MED_1
+Multimedidor 132KV,MED_3
+Multimedidor 33KV,MED_2
+Multimedidor 500KV,MED_5
+Multimedidor,MED_
+PAT de interruptor de Trafo de 13.2kv,257_
+PAT de interruptor de Trafo de 132kv,357_
+PAT,57_
+Proteccion de frecuencia de 13.2kv,181_
+Proteccion diferencial 13.2kv Medicion,_1
+Proteccion diferencial 13.2kv,-2_
+Proteccion diferencial 132kv Medicion,_3
+Proteccion diferencial 132kv,-3_
+Proteccion diferencial 33kv Medicion,_2
+Proteccion diferencial alargamiento,-ALARG_
+Proteccion frecuencia,81_
+Recierre,79_
+Reconectador  de 13.2kv señal cableada,195-
+Reconectador  de 13.2kv,195_
+Reconectador  de 33kv señal cableada,295-
+Reconectador  de 33kv,295_
+Reconectador falla tierra sensitiva de 13.2kv,195-SEF_
+Reconectador falla tierra sensitiva de 33kv,295-SEF_
+Reconectador falla tierra sensitiva,95-SEF_
+Reconectador protecciones de 13.2kv,195-PROT_
+Reconectador protecciones de 33kv,295-PROT_
+Reconectador protecciones,95-PROT_
+Reconectador señal cableada,95-
+Reconectador supervision remota de 13.2kv,195-SUP_
+Reconectador supervision remota de 33kv,295-SUP_
+Reconectador supervision remota,95-SUP_
+Reconectador,95_
+Rectificador señal cableada,RECT-
+Rectificador,RECT_
+Regulador bajo carga,RBC_
+Seccionador de 13.2kv,189_
+Seccionador de 132kv,389_
+Seccionador de 33kv,289_
+Seccionador de barra de 132kv,389B_
+Seccionador de barra de 33kv,289B_
+Seccionador de barra de Trafo de 13.2kv,189B_
+Seccionador de barra de trasferencia de 132kv,389BT_
+Seccionador de barra de trasferencia lado barra de 132kv,389BTB_
+Seccionador de barra de trasferencia lado trafo de 132kv,389BTT_
+Seccionador de barra transferencia lado barra,89BTB_
+Seccionador de barra transferencia lado linea,89BTL_
+Seccionador de barra transferencia,89BT_
+Seccionador de barra,89B_
+Seccionador de linea de 132kv,389L_
+Seccionador de linea de 33kv,289L_
+Seccionador de linea de Trafo de 13.2kv,189L_
+Seccionador de linea,89L_
+Seccionador de Trafo de 13.2kv,189T_
+Seccionador de Trafo de 132kv,389T_
+Seccionador de Trafo de 33kv,289T_
+Seccionador de trafo,89T_
+Seccionador,89_
+Señal celdas de 13.2kv,CELDA13_
+Señal celdas de 33kv,CELDA33_
+Señal general,GRAL_
+Sincronismo,SY_
+Sobrecorriente general a tierra de 13.2kv,25051N_
+Sobrecorriente general a tierra de 132kv,35051N_
+Sobrecorriente general a tierra,5051N_
+Sobrecorriente general de 13.2kv,15051_
+Sobrecorriente general de 132kv,35051_
+Sobrecorriente general de 33kv,25051_
+Sobrecorriente general,5051_
+Sobrecorriente instantanea a tierra de 13.2kv,250N_
+Sobrecorriente instantanea a tierra de 132kv,350N_
+Sobrecorriente instantanea a tierra,50N_
+Sobrecorriente Instantanea de 13.2kv,150_
+Sobrecorriente Instantanea de 132kv,350_
+Sobrecorriente Instantanea de 33kv,250_
+Sobrecorriente Instantanea,50_
+Sobrecorriente temporizada a tierra de 13.2kv,151N_
+Sobrecorriente temporizada a tierra de 132kv,351N_
+Sobrecorriente temporizada a tierra de 33kv,251N_
+Sobrecorriente temporizada a tierra,51N_
+Sobrecorriente temporizada de 13.2kv,151_
+Sobrecorriente temporizada de 132kv,351_
+Sobrecorriente temporizada de 33kv,251_
+Sobrecorriente temporizada,51_
+Teleproteccion,TP_
+Termica Q1 de rectificador,RECT-Q1_
+Termica Q2 de rectificador,RECT-Q2_
+Termica Q3 de rectificador,RECT-Q3_
+Unidad de terminal remota,RTU_
+Ventiladores,VENT_

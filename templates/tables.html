@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Editar listas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{font-family:system-ui,Arial,sans-serif; margin:20px;}
+    .grid{display:grid; grid-template-columns:260px 1fr; gap:16px;}
+    .card{border:1px solid #ddd; border-radius:12px; padding:16px;}
+    table{width:100%; border-collapse:collapse;}
+    th,td{border-bottom:1px solid #eee; padding:8px; text-align:left;}
+    input,select,button{padding:8px; font-size:14px;}
+  </style>
+</head>
+<body>
+  <p><a href="/">← Volver</a></p>
+  <h1>Editar listas</h1>
+  <div class="grid">
+    <div class="card">
+      <h3>Familias</h3>
+      <select id="family" style="width:100%">
+        {% for f in familias %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
+      </select>
+      <p style="margin-top:12px">
+        <button id="reload">Actualizar</button>
+      </p>
+      <hr>
+      <h3>Agregar / Editar entrada</h3>
+      <input id="key" placeholder="Valor (ej. Villa Mercedes)" style="width:100%;margin-bottom:6px">
+      <input id="value" placeholder="Código (ej. VM)" style="width:100%;margin-bottom:6px">
+      <button id="save">Guardar</button>
+    </div>
+
+    <div class="card">
+      <h3 id="title">Entradas</h3>
+      <table>
+        <thead><tr><th>Valor</th><th>Código</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+let CACHE={lists:{},overrides:{}};
+
+async function loadAll(){
+  const r=await fetch("/api/lists"); CACHE=await r.json(); render();
+}
+function render(){
+  const fam=document.getElementById("family").value;
+  document.getElementById("title").textContent=`Entradas — ${fam}`;
+  const tbody=document.getElementById("rows"); tbody.innerHTML="";
+  const entries=Object.entries(CACHE.lists[fam]||{}).sort((a,b)=>a[0].localeCompare(b[0]));
+  for(const [k,v] of entries){
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${k}</td><td>${v}</td><td><button data-k="${k}">Eliminar</button></td>`;
+    tr.querySelector("button").onclick=async()=>{
+      if(!confirm(`Eliminar "${k}" de ${fam}?`))return;
+      const r=await fetch("/api/lists/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({family:fam,key:k})});
+      const j=await r.json(); if(!j.ok) return alert(j.error||"Error"); loadAll();
+    };
+    tbody.appendChild(tr);
+  }
+}
+document.getElementById("family").onchange=render;
+document.getElementById("reload").onclick=loadAll;
+document.getElementById("save").onclick=async()=>{
+  const fam=document.getElementById("family").value;
+  const key=document.getElementById("key").value.trim();
+  const value=document.getElementById("value").value.trim();
+  if(!key||!value) return alert("Completá Valor y Código");
+  const r=await fetch("/api/lists/upsert",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({family:fam,key,value})});
+  const j=await r.json(); if(!j.ok) return alert(j.error||"Error");
+  document.getElementById("key").value=""; document.getElementById("value").value="";
+  loadAll();
+};
+loadAll();
+</script>
+</body>
+</html>
