@@ -55,13 +55,15 @@
   </p>
 
   <div class="toolbar">
-        <button id="templatesOpen">TEMPLATES</button>
+       <!-- <button id="templatesOpen">TEMPLATES</button> -->
 
     <button id="add">+ Agregar fila</button>
     <button id="dup">Duplicar última</button>
     <button id="clear">Vaciar todo</button>
     <button id="exportCsv">⬇️ Exportar CSV</button>
     <button id="pasteMulti">📋 Pegar (multi)</button>
+    <button id="tpl2Open">TEMPLATES</button>
+  
 
     <a href="/tables">🔧 Ver / Editar listas</a>
     <a href="/export/listas.zip" class="nowrap">⬇️ Exportar Listas+Reglas</a>
@@ -116,87 +118,96 @@
   </div>
 
   <script>const FAMILIAS = {{ familias|tojson }};</script>
-  <!-- Templates dialog -->
-  <dialog id="tplDialog" style="max-width: 880px; width: 90%;">
-    <form method="dialog" style="margin:0; padding:0;">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-        <h3 style="margin:0;">Templates de Equipos</h3>
-        <div style="display:flex; gap:8px;">
-          <button id="tplNew" type="button">Nuevo equipo</button>
-          <button id="tplExport" type="button" title="Exportar JSON">Exportar</button>
-          <label style="display:inline-flex; gap:6px; align-items:center;">
-            <input id="tplImportFile" type="file" accept="application/json" style="display:none">
-            <span class="button-like" style="border:1px solid #ccc; padding:6px 10px; border-radius:6px; cursor:pointer;"
-                  onclick="document.getElementById('tplImportFile').click()">Importar</span>
-          </label>
-          <button id="tplClose" value="cancel">Cerrar</button>
+ <!-- TEMPLATES v2 (aislado, todas las columnas) -->
+<!-- TEMPLATES v2 (DISPOSITIVO / PROT. SEC. / SEÑAL) -->
+<dialog id="tpl2Dialog" style="max-width:95vw;width:95vw;">
+  <form method="dialog" style="margin:0;padding:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <h3 style="margin:0">Templates de Equipos</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="tpl2New" type="button">Nuevo</button>
+        <button id="tpl2Edit" type="button">Editar</button>
+        <button id="tpl2Delete" type="button">Eliminar</button>
+        <button id="tpl2Export" type="button">Exportar</button>
+        <label style="display:inline-flex;gap:6px;align-items:center;">
+          <input id="tpl2ImportFile" type="file" accept="application/json" style="display:none">
+          <span style="border:1px solid #ccc;padding:6px 10px;border-radius:6px;cursor:pointer;"
+                onclick="document.getElementById('tpl2ImportFile').click()">Importar</span>
+        </label>
+        <button id="tpl2Close" value="cancel">Cerrar</button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+      <!-- Lista -->
+      <div class="card" style="max-height:420px;overflow:auto">
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input id="tpl2Search" placeholder="Buscar…" style="flex:1;padding:8px">
         </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr><th>Equipo</th><th>Descripción</th><th></th></tr></thead>
+          <tbody id="tpl2List"></tbody>
+        </table>
       </div>
 
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px;">
-        <div class="card" style="max-height: 420px; overflow:auto;">
-          <div style="display:flex; gap:8px; margin-bottom:8px;">
-            <input id="tplSearch" placeholder="Buscar por nombre, descripción o tag…" style="flex:1; padding:8px;">
-          </div>
-          <table style="width:100%; border-collapse:collapse;">
-            <thead>
-              <tr><th style="text-align:left;">Equipo</th><th style="text-align:left;">Descripción</th><th></th></tr>
-            </thead>
-            <tbody id="tplList"></tbody>
+      <!-- Vista previa -->
+      <div class="card" style="max-height:420px;overflow:auto">
+        <h4 style="margin:0 0 6px">Vista previa</h4>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr>
+            <th>#</th><th>DISPOSITIVO</th><th>PROT. SEC.</th><th>SEÑAL</th>
+          </tr></thead>
+          <tbody id="tpl2Preview"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+  <button id="tpl2Apply" type="button"
+          style="background:#0a7; color:white; padding:8px 12px; border-radius:6px;">
+    Aplicar al generador
+  </button>
+</div>
+
+
+    <!-- Editor simple (solo 3 columnas) -->
+    <div id="tpl2Editor" class="card" style="margin-top:12px;display:none">
+      <h4 style="margin:0 0 8px">Editar / Crear equipo</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div><label>Nombre</label><input id="tpl2FormNombre" style="width:100%;padding:8px"></div>
+        <div><label>Tags</label><input id="tpl2FormTags" style="width:100%;padding:8px" placeholder="MT, Protección, …"></div>
+      </div>
+      <div style="margin-top:8px;">
+        <label>Descripción</label>
+        <textarea id="tpl2FormDesc" rows="2" style="width:100%;padding:8px"></textarea>
+      </div>
+
+      <div style="margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label>Filas del template (solo DISPOSITIVO / PROT. SEC. / SEÑAL)</label>
+          <button id="tpl2AddItem" type="button">Agregar fila</button>
+        </div>
+        <div style="overflow:auto;max-height:40vh;">
+          <table style="width:900px;border-collapse:collapse;margin-top:6px;font-size:12px;">
+            <thead><tr>
+              <th style="width:32px">#</th>
+              <th style="min-width:260px">DISPOSITIVO</th>
+              <th style="min-width:260px">PROTECCION SECUNDARIA</th>
+              <th style="min-width:260px">SEÑAL</th>
+              <th style="width:70px"></th>
+            </tr></thead>
+            <tbody id="tpl2Items"></tbody>
           </table>
         </div>
-
-        <div class="card" style="max-height: 420px; overflow:auto;">
-          <h4 style="margin-top:0;">Vista previa (Señal)</h4>
-          <table style="width:100%; border-collapse:collapse;">
-            <thead><tr><th style="text-align:left;width:50px;">#</th><th style="text-align:left;">Señal</th></tr></thead>
-            <tbody id="tplPreview"></tbody>
-          </table>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+          <button id="tpl2CancelEdit" type="button">Cancelar</button>
+          <button id="tpl2Save" type="button" style="background:#06c;color:#fff;padding:8px 12px;border-radius:6px;">Guardar</button>
         </div>
       </div>
+    </div>
+  </form>
+</dialog>
 
-      <div style="display:flex; justify-content:space-between; margin-top:12px;">
-        <div>
-          <button id="tplEdit" type="button">Editar equipo</button>
-          <button id="tplDelete" type="button" style="margin-left:8px;">Eliminar equipo</button>
-        </div>
-        <button id="tplApply" type="button" style="background:#0a7; color:white; padding:8px 12px; border-radius:6px;">Aplicar al generador</button>
-      </div>
-
-      <!-- Editor simple -->
-      <div id="tplEditor" class="card" style="margin-top:12px; display:none;">
-        <h4 style="margin:0 0 8px;">Editar / Crear equipo</h4>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-          <div>
-            <label>Nombre</label>
-            <input id="tplFormNombre" placeholder="Ej.: CELDA MT - Alimentador" style="width:100%; padding:8px;">
-          </div>
-          <div>
-            <label>Tags (separados por coma)</label>
-            <input id="tplFormTags" placeholder="MT, Protección, Alimentador" style="width:100%; padding:8px;">
-          </div>
-        </div>
-        <div style="margin-top:8px;">
-          <label>Descripción</label>
-          <textarea id="tplFormDesc" rows="2" style="width:100%; padding:8px;"></textarea>
-        </div>
-        <div style="margin-top:8px;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label>Filas del template (solo columna Señal)</label>
-            <button id="tplAddItem" type="button">Agregar fila</button>
-          </div>
-          <table style="width:100%; border-collapse:collapse; margin-top:6px;">
-            <thead><tr><th style="width:50px;">#</th><th>Señal</th><th style="width:80px;"></th></tr></thead>
-            <tbody id="tplItems"></tbody>
-          </table>
-        </div>
-        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
-          <button id="tplCancelEdit" type="button">Cancelar</button>
-          <button id="tplSave" type="button" style="background:#06c; color:white; padding:8px 12px; border-radius:6px;">Guardar</button>
-        </div>
-      </div>
-    </form>
-  </dialog>
   <script src="/static/main.js"></script>
 </body>
 </html>

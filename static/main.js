@@ -290,7 +290,7 @@ function applyCompact(on){ document.body.dataset.compact = on ? "1" : "0"; }
 
 /* ====== Init ====== */
 function init() {
-    TPL_bindUI();
+   // TPL_bindUI();
 document.getElementById("add").addEventListener("click", ()=> newRow({}));
   document.getElementById("dup").addEventListener("click", duplicateLastRow);
   document.getElementById("clear").addEventListener("click", clearAllRows);
@@ -309,136 +309,183 @@ document.getElementById("add").addEventListener("click", ()=> newRow({}));
 document.addEventListener("DOMContentLoaded", init);
 
 
-/* ====== Templates (Equipos) ====== */
-const TPL_LS_KEY = "tagger.templates.v1";
-function TPL_uid(){ return Math.random().toString(36).slice(2) + Date.now().toString(36); }
-function TPL_seed(){
-  return [
-    { id: TPL_uid(), nombre: "CELDA MT - Alimentador", descripcion: "Protecciones y señales base de una celda MT para alimentador.", tags: ["MT","Protección","Alimentador"], items: [{senal:"I>"},{senal:"I>>"},{senal:"Io>"},{senal:"Io>>"},{senal:"Disparo"},{senal:"Rearme"},{senal:"Posición Abierto"},{senal:"Posición Cerrado"}] },
-    { id: TPL_uid(), nombre: "CELDA MT - Transformador de Potencia", descripcion: "Señales típicas TF; ajustá a tu estándar.", tags: ["MT","Trafo"], items: [{senal:"BOMBA ACEITE EN MARCHA"},{senal:"FAN EN MARCHA"},{senal:"RELÉ GAS"},{senal:"TEMPERATURA ALTA"},{senal:"NIVEL ACEITE BAJO"},{senal:"DISPARO DIFERENCIAL"}] }
-  ];
-}
-function TPL_load(){ try{ const raw=localStorage.getItem(TPL_LS_KEY); const parsed=raw?JSON.parse(raw):null; return Array.isArray(parsed)?parsed:TPL_seed(); }catch(_){ return TPL_seed(); } }
-function TPL_save(list){ localStorage.setItem(TPL_LS_KEY, JSON.stringify(list)); }
-let TPL_state = { all: TPL_load(), selectedId: null, editingId: null };
+/* ====== TEMPLATES v2 (solo DISPOSITIVO / PROT. SEC. / SEÑAL) ====== */
+const TPL2_KEY = "tagger.templates.v2";
+const TPL2 = {
+  uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); },
+  state: { all: [], selectedId:null, editingId:null },
 
-function TPL_open(){ const dlg=document.getElementById("tplDialog"); TPL_renderList(); TPL_renderPreview(); document.getElementById("tplEditor").style.display="none"; dlg.showModal(); }
-function TPL_close(){ document.getElementById("tplDialog").close(); }
-function TPL_filter(q){ q=(q||"").toLowerCase().trim(); if(!q) return TPL_state.all; return TPL_state.all.filter(t => t.nombre.toLowerCase().includes(q) || (t.descripcion||"").toLowerCase().includes(q) || (t.tags||[]).some(tag => tag.toLowerCase().includes(q))); }
+  load(){
+    try{ const p=JSON.parse(localStorage.getItem(TPL2_KEY)||"[]"); this.state.all=Array.isArray(p)?p:[]; }
+    catch{ this.state.all=[]; }
+  },
+  save(){ localStorage.setItem(TPL2_KEY, JSON.stringify(this.state.all)); },
 
-function TPL_renderList(){
-  const q=document.getElementById("tplSearch")?.value||"";
-  const list=TPL_filter(q);
-  const tbody=document.getElementById("tplList"); tbody.innerHTML="";
-  list.forEach(t=>{
+  // Solo 3 campos
+  itemToPrefill(it){
+    return {
+      cod_disp_name: it.cod_disp_name || "",
+      prot_sec_name: it.prot_sec_name || "",
+      senal_name:    it.senal_name    || it.senal || ""
+    };
+  },
+
+  // Usa tus helpers existentes (famOptions/selectWithOptions)
+  mkSelect(fam){
+    if (typeof famOptions==="function" && typeof selectWithOptions==="function"){
+      return selectWithOptions(famOptions(fam));
+    }
+    const i=document.createElement("input"); i.placeholder=fam; return i;
+  },
+
+  /* ---------- UI principal ---------- */
+  open(){ this.renderList(); this.renderPreview(); document.getElementById("tpl2Editor").style.display="none"; document.getElementById("tpl2Dialog").showModal(); },
+  close(){ document.getElementById("tpl2Dialog").close(); },
+
+  renderList(){
+    const q=(document.getElementById("tpl2Search")?.value||"").toLowerCase();
+    const body=document.getElementById("tpl2List"); body.innerHTML="";
+    this.state.all
+      .filter(t=>t.nombre?.toLowerCase().includes(q) || (t.descripcion||"").toLowerCase().includes(q))
+      .forEach(t=>{
+        const tr=document.createElement("tr");
+        //tr.innerHTML=`<td>${t.nombre||"—"}</td><td>${t.descripcion||""}</td><td><button data-id="${t.id}" class="tpl2-choose">Elegir</button></td>`;
+        tr.innerHTML = `
+  <td>${t.nombre || "—"}</td>
+  <td>${t.descripcion || ""}</td>
+  <td><button type="button" data-id="${t.id}" class="tpl2-choose">Elegir</button></td>
+`;
+
+        body.appendChild(tr);
+      });
+    body.querySelectorAll(".tpl2-choose").forEach(b=> b.onclick=()=>{ this.state.selectedId=b.dataset.id; this.renderPreview(); });
+  },
+
+  renderPreview(){
+    const prev=document.getElementById("tpl2Preview"); prev.innerHTML="";
+    const t=this.state.all.find(x=>x.id===this.state.selectedId); if(!t) return;
+    (t.items||[]).forEach((it,i)=>{
+      const p=this.itemToPrefill(it);
+      const tr=document.createElement("tr");
+      tr.innerHTML=`<td>${i+1}</td><td>${p.cod_disp_name}</td><td>${p.prot_sec_name}</td><td>${p.senal_name}</td>`;
+      prev.appendChild(tr);
+    });
+  },
+
+  /* ---------- Editor (3 columnas) ---------- */
+  addItemRow(it={}){
+    const items=document.getElementById("tpl2Items");
     const tr=document.createElement("tr");
-    tr.innerHTML=`
-      <td><div style="font-weight:600">${t.nombre}</div><div style="font-size:12px; opacity:.7">${(t.tags||[]).join(" · ")}</div></td>
-      <td>${t.descripcion||""}</td>
-      <td style="text-align:right;"><button type="button" data-id="${t.id}" class="tpl-choose">Elegir</button></td>`;
-    tbody.appendChild(tr);
-  });
-  tbody.querySelectorAll(".tpl-choose").forEach(btn=>{
-    btn.addEventListener("click", ()=>{ TPL_state.selectedId=btn.getAttribute("data-id"); TPL_renderPreview(); });
-  });
-}
 
-function TPL_renderPreview(){
-  const tbody=document.getElementById("tplPreview"); tbody.innerHTML="";
-  const t=TPL_state.all.find(x=>x.id===TPL_state.selectedId);
-  if(!t) return;
-  t.items.forEach((it,idx)=>{
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${idx+1}</td><td>${it.senal}</td>`;
-    tbody.appendChild(tr);
-  });
-}
+    const disp=this.mkSelect("DISPOSITIVO");
+    const prot=this.mkSelect("PROTECCION SECUNDARIA");
+    const senal=this.mkSelect("SEÑAL");
 
-function TPL_apply(){
-  const t=TPL_state.all.find(x=>x.id===TPL_state.selectedId);
-  if(!t) return;
-  t.items.forEach(it => newRow({ senal_name: it.senal })); // Solo SENAL
-  TPL_close();
-}
+    const p=this.itemToPrefill(it);
+    disp.value=p.cod_disp_name; prot.value=p.prot_sec_name; senal.value=p.senal_name;
 
-function TPL_startNew(){
-  TPL_state.editingId="new";
-  document.getElementById("tplFormNombre").value=""; document.getElementById("tplFormDesc").value="";
-  document.getElementById("tplFormTags").value="";
-  const items=document.getElementById("tplItems"); items.innerHTML="";
-  TPL_addItemRow("");
-  document.getElementById("tplEditor").style.display="";
-}
-function TPL_startEdit(){
-  const t=TPL_state.all.find(x=>x.id===TPL_state.selectedId); if(!t) return;
-  TPL_state.editingId=t.id;
-  document.getElementById("tplFormNombre").value=t.nombre||"";
-  document.getElementById("tplFormDesc").value=t.descripcion||"";
-  document.getElementById("tplFormTags").value=(t.tags||[]).join(", ");
-  const items=document.getElementById("tplItems"); items.innerHTML="";
-  (t.items||[]).forEach(it=>TPL_addItemRow(it.senal));
-  document.getElementById("tplEditor").style.display="";
-}
-function TPL_addItemRow(senal=""){
-  const items=document.getElementById("tplItems");
-  const tr=document.createElement("tr");
-  tr.innerHTML=`
-    <td class="idx"></td>
-    <td><input class="tplItemSenal" value="${(senal||"").replace(/"/g,'&quot;')}" placeholder="Ej.: I>, Disparo, Posición Cerrado…" style="width:100%; padding:6px;"></td>
-    <td style="text-align:right;"><button type="button" class="tplDelItem">Eliminar</button></td>`;
-  items.appendChild(tr);
-  TPL_reindexItems();
-  tr.querySelector(".tplDelItem").addEventListener("click", ()=>{ tr.remove(); TPL_reindexItems(); });
-}
-function TPL_reindexItems(){ document.querySelectorAll("#tplItems .idx").forEach((el,i)=> el.textContent=i+1); }
+    tr.innerHTML=`<td class="idx"></td>`;
+    [disp,prot,senal].forEach(el=>{ const td=document.createElement("td"); td.appendChild(el); tr.appendChild(td); });
+    const tdAct=document.createElement("td"); const del=document.createElement("button"); del.textContent="Eliminar";
+    del.onclick=()=>{ tr.remove(); this.reindex(); }; tdAct.appendChild(del); tr.appendChild(tdAct);
 
-function TPL_saveEdit(){
-  const nombre=(document.getElementById("tplFormNombre").value||"").trim()||"Sin nombre";
-  const descripcion=(document.getElementById("tplFormDesc").value||"").trim();
-  const tags=(document.getElementById("tplFormTags").value||"").split(",").map(s=>s.trim()).filter(Boolean);
-  const items=Array.from(document.querySelectorAll("#tplItems .tplItemSenal")).map(inp=>({ senal: (inp.value||"").trim() })).filter(it=>it.senal.length>0);
-  const payload={ id: TPL_state.editingId==="new" ? TPL_uid() : TPL_state.editingId, nombre, descripcion, tags, items };
-  const idx=TPL_state.all.findIndex(x=>x.id===payload.id);
-  if(idx>=0){ TPL_state.all[idx]=payload; } else { TPL_state.all.unshift(payload); }
-  TPL_save(TPL_state.all); TPL_state.selectedId=payload.id; TPL_renderList(); TPL_renderPreview();
-  document.getElementById("tplEditor").style.display="none";
-}
-function TPL_delete(){
-  const id=TPL_state.selectedId; if(!id) return;
-  TPL_state.all=TPL_state.all.filter(x=>x.id!==id);
-  TPL_save(TPL_state.all); TPL_state.selectedId=null;
-  TPL_renderList(); TPL_renderPreview();
-}
-function TPL_export(){
-  const blob=new Blob([JSON.stringify(TPL_state.all,null,2)],{type:"application/json"});
-  const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download="templates_equipos.json"; a.click(); URL.revokeObjectURL(url);
-}
-function TPL_import(file){
-  const reader=new FileReader();
-  reader.onload=()=>{
-    try{
-      const data=JSON.parse(String(reader.result));
-      if(Array.isArray(data)){
-        TPL_state.all=data.map(t=>({ id:t.id||TPL_uid(), nombre:String(t.nombre||"Sin nombre"), descripcion:t.descripcion?String(t.descripcion):"", tags:Array.isArray(t.tags)?t.tags.map(String):[], items:Array.isArray(t.items)?t.items.map(it=>({ senal:String(it.senal||"").trim() })).filter(it=>it.senal):[] }));
-        TPL_save(TPL_state.all); TPL_renderList(); TPL_renderPreview();
-      }
-    }catch(e){ console.error("JSON inválido", e); }
-  };
-  reader.readAsText(file);
-}
-function TPL_bindUI(){
-  const dlg=document.getElementById("tplDialog"); if(!dlg) return;
-  document.getElementById("templatesOpen")?.addEventListener("click", TPL_open);
-  document.getElementById("tplClose")?.addEventListener("click", TPL_close);
-  document.getElementById("tplApply")?.addEventListener("click", TPL_apply);
-  document.getElementById("tplSearch")?.addEventListener("input", TPL_renderList);
-  document.getElementById("tplNew")?.addEventListener("click", TPL_startNew);
-  document.getElementById("tplEdit")?.addEventListener("click", TPL_startEdit);
-  document.getElementById("tplDelete")?.addEventListener("click", TPL_delete);
-  document.getElementById("tplAddItem")?.addEventListener("click", ()=> TPL_addItemRow(""));
-  document.getElementById("tplSave")?.addEventListener("click", TPL_saveEdit);
-  document.getElementById("tplCancelEdit")?.addEventListener("click", ()=>{ document.getElementById("tplEditor").style.display="none"; });
-  document.getElementById("tplExport")?.addEventListener("click", TPL_export);
-  document.getElementById("tplImportFile")?.addEventListener("change",(e)=>{ const file=e.target.files?.[0]; if(file) TPL_import(file); e.target.value=""; });
-}
+    items.appendChild(tr); this.reindex();
+  },
+  reindex(){ document.querySelectorAll("#tpl2Items .idx").forEach((e,i)=> e.textContent=i+1); },
+
+  collectItems(){
+    return Array.from(document.querySelectorAll("#tpl2Items tr")).map(tr=>{
+      const get=(n)=> tr.querySelectorAll("td")[n]?.querySelector("select,input")?.value || "";
+      return { cod_disp_name:get(1), prot_sec_name:get(2), senal_name:get(3) };
+    });
+  },
+
+  /* ---------- Acciones CRUD ---------- */
+  startNew(){
+    this.state.editingId="new";
+    document.getElementById("tpl2FormNombre").value="";
+    document.getElementById("tpl2FormDesc").value="";
+    document.getElementById("tpl2FormTags").value="";
+    const items=document.getElementById("tpl2Items"); items.innerHTML="";
+    this.addItemRow({});
+    document.getElementById("tpl2Editor").style.display="";
+  },
+
+  startEdit(){
+    const t=this.state.all.find(x=>x.id===this.state.selectedId); if(!t) return;
+    this.state.editingId=t.id;
+    document.getElementById("tpl2FormNombre").value=t.nombre||"";
+    document.getElementById("tpl2FormDesc").value=t.descripcion||"";
+    document.getElementById("tpl2FormTags").value=(t.tags||[]).join(", ");
+    const items=document.getElementById("tpl2Items"); items.innerHTML="";
+    (t.items||[]).forEach(it=> this.addItemRow(it));
+    document.getElementById("tpl2Editor").style.display="";
+  },
+
+  saveEdit(){
+    const nombre=(document.getElementById("tpl2FormNombre").value||"").trim()||"Sin nombre";
+    const descripcion=(document.getElementById("tpl2FormDesc").value||"").trim();
+    const tags=(document.getElementById("tpl2FormTags").value||"").split(",").map(s=>s.trim()).filter(Boolean);
+    const items=this.collectItems();
+    const id=this.state.editingId==="new" ? this.uid() : this.state.editingId;
+    const idx=this.state.all.findIndex(x=>x.id===id);
+    const obj={id,nombre,descripcion,tags,items};
+    if(idx>=0) this.state.all[idx]=obj; else this.state.all.unshift(obj);
+    this.save(); this.state.selectedId=id; document.getElementById("tpl2Editor").style.display="none";
+    this.renderList(); this.renderPreview();
+  },
+
+  delete(){
+    const id=this.state.selectedId; if(!id) return;
+    this.state.all=this.state.all.filter(x=>x.id!==id); this.save();
+    this.state.selectedId=null; this.renderList(); this.renderPreview();
+  },
+
+  /* ---------- Aplicar al generador ---------- */
+  apply(){
+    const t=this.state.all.find(x=>x.id===this.state.selectedId); if(!t) return;
+    (t.items||[]).forEach(it => {
+      // Prellenamos SOLO estos 3 campos; el generador calcula TAG y DESCRIPCIÓN
+      const p=this.itemToPrefill(it);
+      newRow({
+        cod_disp_name: p.cod_disp_name,
+        prot_sec_name: p.prot_sec_name,
+        senal_name:    p.senal_name
+      });
+    });
+    this.close();
+  },
+
+  export(){
+    const blob=new Blob([JSON.stringify(this.state.all,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob); const a=document.createElement("a");
+    a.href=url; a.download="templates_equipos.json"; a.click(); URL.revokeObjectURL(url);
+  },
+  import(file){
+    const rd=new FileReader();
+    rd.onload=()=>{ try{
+      const data=JSON.parse(String(rd.result)); if(Array.isArray(data)){ this.state.all=data; this.save(); this.renderList(); this.renderPreview(); }
+    }catch(e){ console.error("JSON inválido", e); } };
+    rd.readAsText(file);
+  },
+
+  bindUI(){
+    this.load();
+    const $=id=>document.getElementById(id);
+    $("tpl2Open")?.addEventListener("click",()=>this.open());
+    $("tpl2Close")?.addEventListener("click",()=>this.close());
+    $("tpl2Search")?.addEventListener("input",()=>this.renderList());
+    $("tpl2Apply")?.addEventListener("click",()=>this.apply());
+    $("tpl2New")?.addEventListener("click",()=>this.startNew());
+    $("tpl2Edit")?.addEventListener("click",()=>this.startEdit());
+    $("tpl2Delete")?.addEventListener("click",()=>this.delete());
+    $("tpl2Save")?.addEventListener("click",()=>this.saveEdit());
+    $("tpl2AddItem")?.addEventListener("click",()=>this.addItemRow({}));
+    $("tpl2CancelEdit")?.addEventListener("click",()=>{ $("tpl2Editor").style.display="none"; });
+    $("tpl2Export")?.addEventListener("click",()=>this.export());
+    $("tpl2ImportFile")?.addEventListener("change",(e)=>{ const f=e.target.files?.[0]; if(f) this.import(f); e.target.value=""; });
+  }
+};
+
+document.addEventListener("DOMContentLoaded", ()=> TPL2.bindUI());
 
