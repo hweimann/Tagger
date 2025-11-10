@@ -83,16 +83,16 @@ function newRow(prefill = {}) {
   function autosizeRef(){ ref.style.height = "auto"; ref.style.height = (ref.scrollHeight) + "px"; }
   ref.addEventListener("input", autosizeRef);
 
-  const tipo   = selectWithOptions(famOptions("TIPO"));
-  const lugar  = selectWithOptions(famOptions("LUGAR"));
-  const objeto = selectWithOptions(famOptions("OBJETO"));
+  const tipo   = autoField("TIPO",                    prefill.tipo_name || "");
+  const lugar  = autoField("LUGAR",                   prefill.lugar_name || "");
+  const objeto = autoField("OBJETO",                  prefill.objeto_name || "");
   const siglas = document.createElement("input"); siglas.placeholder = "libre";
-  const nivel  = selectWithOptions(famOptions("NIVEL"));
-  const disp   = selectWithOptions(famOptions("DISPOSITIVO"));
-  const prot   = selectWithOptions(famOptions("PROTECCION SECUNDARIA"));
-  const que    = selectWithOptions(famOptions("QUE"));
-  const senal  = selectWithOptions(famOptions("SEÑAL"));
-  const numero = selectWithOptions(famOptions("NUMERO"));
+  const nivel  = autoField("NIVEL",                   prefill.nivel || "");
+const disp   = autoField("DISPOSITIVO",             prefill.cod_disp_name || "");
+const prot   = autoField("PROTECCION SECUNDARIA",   prefill.prot_sec_name || "");
+const que    = autoField("QUE",                     prefill.que_name || "");
+const senal  = autoField("SEÑAL",                   prefill.senal_name || "");
+const numero = autoField("NUMERO",                  prefill.numero_name || "");
 
   // precarga
   ref.value     = prefill.ref || "";
@@ -373,15 +373,20 @@ itemToPrefill(it){
   });
 },
 
-  /* ---------- Editor (3 columnas) ---------- */
+  /* ---------- Editor (4 columnas) ---------- */
   addItemRow(it={}){
     const items=document.getElementById("tpl2Items");
     const tr=document.createElement("tr");
 
-    const disp=this.mkSelect("DISPOSITIVO");
-    const prot=this.mkSelect("PROTECCION SECUNDARIA");
-    const que=this.mkSelect("QUE");
-    const senal=this.mkSelect("SEÑAL");
+    //const disp=this.mkSelect("DISPOSITIVO");
+    //const prot=this.mkSelect("PROTECCION SECUNDARIA");
+    //const que=this.mkSelect("QUE");
+    //const senal=this.mkSelect("SEÑAL");
+
+    const disp  = autoField("DISPOSITIVO");
+    const prot  = autoField("PROTECCION SECUNDARIA");
+    const que   = autoField("QUE");
+    const senal = autoField("SEÑAL");
 
     const p=this.itemToPrefill(it);
     disp.value=p.cod_disp_name; prot.value=p.prot_sec_name; que.value=p.que_name; senal.value=p.senal_name;
@@ -499,3 +504,66 @@ itemToPrefill(it){
 
 document.addEventListener("DOMContentLoaded", ()=> TPL2.bindUI());
 
+/* =======================
+   AUTOCOMPLETE (combobox)
+   ======================= */
+
+/**
+ * Devuelve la lista de nombres de una familia (TIPO, LUGAR, ...).
+ * Soporta objetos {code, name} o strings planos.
+ */
+function famNames(fam) {
+  try {
+    const raw = famOptions(fam) || [];
+    return raw.map(r => (r && (r.name || r.nombre)) ? (r.name || r.nombre) : String(r || ""))
+              .filter(Boolean);
+  } catch (e) {
+    console.warn("famNames fallback for", fam, e);
+    return [];
+  }
+}
+
+/**
+ * Crea un input con <datalist> que sugiere opciones de la familia indicada.
+ * - fam: "TIPO", "LUGAR", "DISPOSITIVO", "PROTECCION SECUNDARIA", "QUE", "SEÑAL", "NIVEL", "NUMERO"
+ * - value: valor inicial (texto)
+ */
+function autoField(fam, value = "") {
+  const id = "auto_" + fam.replace(/\s+/g, "_").toLowerCase();
+  // Datalist único por familia (se reutiliza)
+  let dl = document.getElementById(id);
+  if (!dl) {
+    dl = document.createElement("datalist");
+    dl.id = id;
+    document.body.appendChild(dl);
+  }
+  // (Re)popular opciones
+  const names = famNames(fam);
+  dl.innerHTML = "";
+  names.forEach(n => {
+    const opt = document.createElement("option");
+    opt.value = n;
+    dl.appendChild(opt);
+  });
+
+  // Input asociado
+  const inp = document.createElement("input");
+  inp.type = "text";
+  inp.setAttribute("list", id);
+  inp.autocomplete = "off";
+  inp.spellcheck = false;
+  inp.style.width = "100%";
+  inp.placeholder = fam;
+  if (value) inp.value = value;
+
+  // Disparar eventos de cambio mientras escribe (para que tu generador regenera TAG/DESCRIPCION)
+  const fire = () => { inp.dispatchEvent(new Event("change", { bubbles: true })); };
+  inp.addEventListener("input", fire);
+  inp.addEventListener("change", fire);
+
+  // API simpática para leer/escribir como un <select>
+  inp.getValue = () => inp.value.trim();
+  inp.setValue = (v) => { inp.value = v || ""; fire(); };
+
+  return inp;
+}
