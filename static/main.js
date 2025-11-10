@@ -321,14 +321,15 @@ const TPL2 = {
   },
   save(){ localStorage.setItem(TPL2_KEY, JSON.stringify(this.state.all)); },
 
-  // Solo 3 campos
-  itemToPrefill(it){
-    return {
-      cod_disp_name: it.cod_disp_name || "",
-      prot_sec_name: it.prot_sec_name || "",
-      senal_name:    it.senal_name    || it.senal || ""
-    };
-  },
+  // Solo 4 campos
+itemToPrefill(it){
+  return {
+    cod_disp_name: it.cod_disp_name || "",
+    prot_sec_name: it.prot_sec_name || "",
+    que_name:      it.que_name      || "",
+    senal_name:    it.senal_name    || it.senal || ""
+  };
+},
 
   // Usa tus helpers existentes (famOptions/selectWithOptions)
   mkSelect(fam){
@@ -362,15 +363,15 @@ const TPL2 = {
   },
 
   renderPreview(){
-    const prev=document.getElementById("tpl2Preview"); prev.innerHTML="";
-    const t=this.state.all.find(x=>x.id===this.state.selectedId); if(!t) return;
-    (t.items||[]).forEach((it,i)=>{
-      const p=this.itemToPrefill(it);
-      const tr=document.createElement("tr");
-      tr.innerHTML=`<td>${i+1}</td><td>${p.cod_disp_name}</td><td>${p.prot_sec_name}</td><td>${p.senal_name}</td>`;
-      prev.appendChild(tr);
-    });
-  },
+  const prev=document.getElementById("tpl2Preview"); prev.innerHTML="";
+  const t=this.state.all.find(x=>x.id===this.state.selectedId); if(!t) return;
+  (t.items||[]).forEach((it,i)=>{
+    const p=this.itemToPrefill(it);
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${i+1}</td><td>${p.cod_disp_name}</td><td>${p.prot_sec_name}</td><td>${p.que_name}</td><td>${p.senal_name}</td>`;
+    prev.appendChild(tr);
+  });
+},
 
   /* ---------- Editor (3 columnas) ---------- */
   addItemRow(it={}){
@@ -379,26 +380,35 @@ const TPL2 = {
 
     const disp=this.mkSelect("DISPOSITIVO");
     const prot=this.mkSelect("PROTECCION SECUNDARIA");
+    const que=this.mkSelect("QUE");
     const senal=this.mkSelect("SEÑAL");
 
     const p=this.itemToPrefill(it);
-    disp.value=p.cod_disp_name; prot.value=p.prot_sec_name; senal.value=p.senal_name;
+    disp.value=p.cod_disp_name; prot.value=p.prot_sec_name; que.value=p.que_name; senal.value=p.senal_name;
 
     tr.innerHTML=`<td class="idx"></td>`;
-    [disp,prot,senal].forEach(el=>{ const td=document.createElement("td"); td.appendChild(el); tr.appendChild(td); });
+    [disp,prot,que,senal].forEach(el=>{ const td=document.createElement("td"); td.appendChild(el); tr.appendChild(td); });
     const tdAct=document.createElement("td"); const del=document.createElement("button"); del.textContent="Eliminar";
     del.onclick=()=>{ tr.remove(); this.reindex(); }; tdAct.appendChild(del); tr.appendChild(tdAct);
 
     items.appendChild(tr); this.reindex();
   },
+
+
   reindex(){ document.querySelectorAll("#tpl2Items .idx").forEach((e,i)=> e.textContent=i+1); },
 
   collectItems(){
-    return Array.from(document.querySelectorAll("#tpl2Items tr")).map(tr=>{
-      const get=(n)=> tr.querySelectorAll("td")[n]?.querySelector("select,input")?.value || "";
-      return { cod_disp_name:get(1), prot_sec_name:get(2), senal_name:get(3) };
-    });
-  },
+  return Array.from(document.querySelectorAll("#tpl2Items tr")).map(tr=>{
+    const get=(n)=> tr.querySelectorAll("td")[n]?.querySelector("select,input")?.value || "";
+    // n=1 DISPOSITIVO, n=2 PROT SEC, n=3 QUE, n=4 SEÑAL
+    return {
+      cod_disp_name:get(1),
+      prot_sec_name:get(2),
+      que_name:get(3),
+      senal_name:get(4)
+    };
+  });
+},
 
   /* ---------- Acciones CRUD ---------- */
   startNew(){
@@ -443,18 +453,18 @@ const TPL2 = {
 
   /* ---------- Aplicar al generador ---------- */
   apply(){
-    const t=this.state.all.find(x=>x.id===this.state.selectedId); if(!t) return;
-    (t.items||[]).forEach(it => {
-      // Prellenamos SOLO estos 3 campos; el generador calcula TAG y DESCRIPCIÓN
-      const p=this.itemToPrefill(it);
-      newRow({
-        cod_disp_name: p.cod_disp_name,
-        prot_sec_name: p.prot_sec_name,
-        senal_name:    p.senal_name
-      });
+  const t=this.state.all.find(x=>x.id===this.state.selectedId); if(!t) return;
+  (t.items||[]).forEach(it => {
+    const p=this.itemToPrefill(it);
+    newRow({
+      cod_disp_name: p.cod_disp_name,
+      prot_sec_name: p.prot_sec_name,
+      que_name:      p.que_name,
+      senal_name:    p.senal_name
     });
-    this.close();
-  },
+  });
+  this.close();
+},
 
   export(){
     const blob=new Blob([JSON.stringify(this.state.all,null,2)],{type:"application/json"});
