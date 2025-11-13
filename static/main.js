@@ -218,7 +218,35 @@ function duplicateLastRow() {
   const last = rows[rows.length - 1];
   newRow(payloadFromRow(last));
 }
-function clearAllRows() { document.getElementById("rows").innerHTML = ""; }
+
+function clearAllRows() {
+  const tbody = document.getElementById("rows");
+  if (!tbody) return;
+
+  const active = localStorage.getItem("tagger.activeCat.v1") || "BIN";
+
+  // Nombre lindo para el mensaje
+  const labels = {
+    ANA: "Analógicas",
+    BIN: "Binarias",
+    CMD: "Comandos"
+  };
+  const nice = labels[active] || active;
+
+  if (!confirm(`¿Vaciar todas las filas de la categoría "${nice}"?`)) {
+    return;
+  }
+
+  Array.from(tbody.querySelectorAll("tr")).forEach(tr => {
+    const cat = tr.dataset.cat || "BIN"; // filas viejas sin data-cat → BIN
+    if (cat === active) {
+      tr.remove();
+    }
+  });
+}
+
+
+
 function exportCsv() {
   const rows = document.querySelectorAll("#rows tr");
   const headers = ["REF","TIPO","LUGAR","OBJETO","SIGLAS","NIVEL","DISPOSITIVO","PROTECCION_SECUNDARIA","QUE","SEÑAL","NUMERO","TAG","DESCRIPCION"];
@@ -452,9 +480,23 @@ itemToPrefill(it){
   },
 
   delete(){
-    const id=this.state.selectedId; if(!id) return;
-    this.state.all=this.state.all.filter(x=>x.id!==id); this.save();
-    this.state.selectedId=null; this.renderList(); this.renderPreview();
+    const id = this.state.selectedId;
+    if (!id) return;
+
+    const t = this.state.all.find(x => x.id === id);
+    const nombre = t?.nombre || "";
+
+    const msg = nombre
+      ? `¿Seguro que querés eliminar el template "${nombre}"?`
+      : "¿Seguro que querés eliminar este template?";
+
+    if (!confirm(msg)) return;
+
+    this.state.all = this.state.all.filter(x => x.id !== id);
+    this.save();
+    this.state.selectedId = null;
+    this.renderList();
+    this.renderPreview();
   },
 
   /* ---------- Aplicar al generador ---------- */
