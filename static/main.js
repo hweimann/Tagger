@@ -208,6 +208,7 @@ const numero = autoField("NUMERO",                  prefill.numero_name || "");
   // Estado inicial
   refreshRow(tr);
   autosizeRef();
+  return tr;   // 👈 ESTA LÍNEA NUEVA
 }
 
 /* ====== Toolbar actions ====== */
@@ -568,10 +569,9 @@ function autoField(fam, value = "") {
   return inp;
 }
 
-
-/* ==========================
+/* ===========================================================
    Categorías + Persistencia por categoría (restaura sin mezclar)
-   ========================== */
+   =========================================================== */
 (function(){
   // --- Config ---
   const STORAGE_KEY = "tagger.state.v3";       // estado por categoría
@@ -597,18 +597,50 @@ function autoField(fam, value = "") {
     values.forEach((v,i)=>{ if (inputs[i]) inputs[i].value = v; });
   }
 
+  // ¿La fila tiene algún dato “real” (algo distinto de "" y del "on" del checkbox)?
+  function rowHasData(values){
+    if (!values) return false;
+    const n = values.length;
+    for (let i=0; i<n; i++){
+      let v = (values[i] || "").trim();
+      if (!v) continue;
+      // último campo suele ser el checkbox REP → ignoro el "on"
+      if (v === "on" && i === n-1) continue;
+      return true;
+    }
+    return false;
+  }
+
+  function snapshotHasAnyData(data){
+    if (!data || typeof data !== "object") return false;
+    for (const cat of [CAT.ANA, CAT.BIN, CAT.CMD]){
+      const arr = data[cat] || [];
+      for (const vals of arr){
+        if (rowHasData(vals)) return true;
+      }
+    }
+    return false;
+  }
+
   // --- Persistencia ---
   function snapshotState(){
     const byCat = { ANA: [], BIN: [], CMD: [] };
     $$("#rows tr").forEach(tr=>{
-      const cat = tr.dataset.cat || CAT.BIN;
-      byCat[cat].push(readRowValues(tr));
+      const cat  = tr.dataset.cat || CAT.BIN;
+      const vals = readRowValues(tr);
+      if (rowHasData(vals)) {          // ⬅️ NO guardamos filas totalmente vacías
+        byCat[cat].push(vals);
+      }
     });
     return byCat;
   }
 
   function saveState(){
     const data = snapshotState();
+    if (!snapshotHasAnyData(data)) {
+      // No pisar un estado bueno con un snapshot vacío
+      return;
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     localStorage.setItem(CAT_KEY, ACTIVE);
   }
@@ -619,7 +651,7 @@ function autoField(fam, value = "") {
 
     let data;
     try { data = JSON.parse(raw); } catch { return false; }
-    if (!data || typeof data !== "object") return false;
+    if (!snapshotHasAnyData(data)) return false;
 
     const tb = $("#rows"); 
     if (!tb) return false;
@@ -630,7 +662,6 @@ function autoField(fam, value = "") {
     // Recrear en orden: ANA, BIN, CMD (el orden no importa, se filtra después)
     [CAT.ANA, CAT.BIN, CAT.CMD].forEach(cat=>{
       (data[cat] || []).forEach(values=>{
-        // creamos una fila con tu función original
         const tr = (typeof window.newRow === "function") ? window.newRow({}) : null;
         if (!tr) return;
         writeRowValues(tr, values);
@@ -655,7 +686,7 @@ function autoField(fam, value = "") {
   function setActive(cat){
     ACTIVE = (cat===CAT.ANA || cat===CAT.CMD) ? cat : CAT.BIN;
     applyCategoryFilter();
-    localStorage.setItem(CAT_KEY, ACTIVE);  // guardo la última categoría activa
+    localStorage.setItem(CAT_KEY, ACTIVE);
   }
 
   function paintButtons(){
@@ -672,7 +703,7 @@ function autoField(fam, value = "") {
     on($("#catCommand"), ACTIVE===CAT.CMD);
   }
 
-  // --- Autosave + etiquetar filas nuevas ---
+  // --- Observadores y eventos ---
   function installAutosave(){
     const tb = $("#rows"); 
     if (!tb) return;
@@ -683,7 +714,7 @@ function autoField(fam, value = "") {
 
     // Observar filas nuevas: si NO estamos restaurando, etiqueta con la categoría activa
     const mo = new MutationObserver(muts=>{
-      if (RESTORING) return; // <- CLAVE: al restaurar NO se reasigna la categoría
+      if (RESTORING) return; // <- clave para que al restaurar NO se reasigne a BIN
       muts.forEach(m=>{
         m.addedNodes.forEach(n=>{
           if (n && n.nodeType===1 && n.tagName==="TR") {

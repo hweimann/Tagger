@@ -42,39 +42,97 @@
   </div>
 
 <script>
-let CACHE={lists:{},overrides:{}};
+let CACHE = { lists: {}, overrides: {} };
 
-async function loadAll(){
-  const r=await fetch("/api/lists"); CACHE=await r.json(); render();
+async function loadAll() {
+  const r = await fetch("/api/lists");
+  const j = await r.json();
+  CACHE.lists = j.lists || {};
+  CACHE.overrides = j.overrides || {};
+  render();
 }
-function render(){
-  const fam=document.getElementById("family").value;
-  document.getElementById("title").textContent=`Entradas — ${fam}`;
-  const tbody=document.getElementById("rows"); tbody.innerHTML="";
-  const entries=Object.entries(CACHE.lists[fam]||{}).sort((a,b)=>a[0].localeCompare(b[0]));
-  for(const [k,v] of entries){
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${k}</td><td>${v}</td><td><button data-k="${k}">Eliminar</button></td>`;
-    tr.querySelector("button").onclick=async()=>{
-      if(!confirm(`Eliminar "${k}" de ${fam}?`))return;
-      const r=await fetch("/api/lists/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({family:fam,key:k})});
-      const j=await r.json(); if(!j.ok) return alert(j.error||"Error"); loadAll();
+
+function render() {
+  const fam = document.getElementById("family").value;
+  document.getElementById("title").textContent = `Entradas — ${fam}`;
+  const tbody = document.getElementById("rows");
+  tbody.innerHTML = "";
+
+  const entries = Object.entries(CACHE.lists[fam] || {})
+    .sort((a, b) => a[0].localeCompare(b[0]));
+
+  for (const [k, v] of entries) {
+    const tr = document.createElement("tr");
+
+    // Valor
+    const tdVal = document.createElement("td");
+    tdVal.textContent = k;
+
+    // Código
+    const tdCod = document.createElement("td");
+    tdCod.textContent = v;
+
+    // Acciones
+    const tdActions = document.createElement("td");
+
+    // Botón EDITAR: carga la fila en el formulario de la izquierda
+    const btnEdit = document.createElement("button");
+    btnEdit.textContent = "Editar";
+    btnEdit.style.marginRight = "4px";
+    btnEdit.onclick = () => {
+      document.getElementById("key").value = k;
+      document.getElementById("value").value = v;
+      document.getElementById("key").focus();
     };
+
+    // Botón ELIMINAR (mantiene tu API actual)
+    const btnDel = document.createElement("button");
+    btnDel.textContent = "Eliminar";
+    btnDel.onclick = async () => {
+      if (!confirm(`Eliminar "${k}" de ${fam}?`)) return;
+      const r = await fetch("/api/lists/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ family: fam, key: k })
+      });
+      const j = await r.json();
+      if (!j.ok) return alert(j.error || "Error");
+      loadAll();
+    };
+
+    tdActions.appendChild(btnEdit);
+    tdActions.appendChild(btnDel);
+
+    tr.appendChild(tdVal);
+    tr.appendChild(tdCod);
+    tr.appendChild(tdActions);
+
     tbody.appendChild(tr);
   }
 }
-document.getElementById("family").onchange=render;
-document.getElementById("reload").onclick=loadAll;
-document.getElementById("save").onclick=async()=>{
-  const fam=document.getElementById("family").value;
-  const key=document.getElementById("key").value.trim();
-  const value=document.getElementById("value").value.trim();
-  if(!key||!value) return alert("Completá Valor y Código");
-  const r=await fetch("/api/lists/upsert",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({family:fam,key,value})});
-  const j=await r.json(); if(!j.ok) return alert(j.error||"Error");
-  document.getElementById("key").value=""; document.getElementById("value").value="";
+
+document.getElementById("family").onchange = render;
+document.getElementById("reload").onclick = loadAll;
+
+document.getElementById("save").onclick = async () => {
+  const fam = document.getElementById("family").value;
+  const key = document.getElementById("key").value.trim();
+  const value = document.getElementById("value").value.trim();
+  if (!key || !value) return alert("Completá Valor y Código");
+
+  const r = await fetch("/api/lists/upsert", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ family: fam, key, value })
+  });
+  const j = await r.json();
+  if (!j.ok) return alert(j.error || "Error");
+
+  document.getElementById("key").value = "";
+  document.getElementById("value").value = "";
   loadAll();
 };
+
 loadAll();
 </script>
 </body>
