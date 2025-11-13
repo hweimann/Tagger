@@ -10,5 +10,8 @@
   "PROTECCION SECUNDARIA": {
     "prueba": "PR",
     "Prueba": "PR"
+  },
+  "DISPOSITIVO": {
+    "IED Sobrecorriente": "5051_"
   }
 }

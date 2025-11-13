@@ -567,3 +567,164 @@ function autoField(fam, value = "") {
 
   return inp;
 }
+
+
+/* ==========================
+   Categorías + Persistencia por categoría (restaura sin mezclar)
+   ========================== */
+(function(){
+  // --- Config ---
+  const STORAGE_KEY = "tagger.state.v3";       // estado por categoría
+  const CAT_KEY     = "tagger.activeCat.v1";   // última categoría usada
+  const CAT = { ANA: "ANA", BIN: "BIN", CMD: "CMD" };
+
+  // --- Estado en memoria ---
+  let ACTIVE    = localStorage.getItem(CAT_KEY) || CAT.BIN;
+  let RESTORING = false; // bandera para no re-etiquetar durante la restauración
+
+  // --- Helpers DOM ---
+  const $  = (s)=>document.querySelector(s);
+  const $$ = (s)=>document.querySelectorAll(s);
+
+  // Lee todos los valores de una fila, en orden de inputs/selects/textareas
+  function readRowValues(tr){
+    return Array.from(tr.querySelectorAll("input,textarea,select")).map(el => el.value);
+  }
+
+  // Escribe valores en una fila creada con newRow()
+  function writeRowValues(tr, values){
+    const inputs = tr.querySelectorAll("input,textarea,select");
+    values.forEach((v,i)=>{ if (inputs[i]) inputs[i].value = v; });
+  }
+
+  // --- Persistencia ---
+  function snapshotState(){
+    const byCat = { ANA: [], BIN: [], CMD: [] };
+    $$("#rows tr").forEach(tr=>{
+      const cat = tr.dataset.cat || CAT.BIN;
+      byCat[cat].push(readRowValues(tr));
+    });
+    return byCat;
+  }
+
+  function saveState(){
+    const data = snapshotState();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(CAT_KEY, ACTIVE);
+  }
+
+  function restoreState(){
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+
+    let data;
+    try { data = JSON.parse(raw); } catch { return false; }
+    if (!data || typeof data !== "object") return false;
+
+    const tb = $("#rows"); 
+    if (!tb) return false;
+
+    RESTORING = true;   // 🔒 desactiva etiquetado automático durante la reconstrucción
+    tb.innerHTML = "";
+
+    // Recrear en orden: ANA, BIN, CMD (el orden no importa, se filtra después)
+    [CAT.ANA, CAT.BIN, CAT.CMD].forEach(cat=>{
+      (data[cat] || []).forEach(values=>{
+        // creamos una fila con tu función original
+        const tr = (typeof window.newRow === "function") ? window.newRow({}) : null;
+        if (!tr) return;
+        writeRowValues(tr, values);
+        tr.dataset.cat = cat; // 🔑 categoría correcta
+      });
+    });
+
+    RESTORING = false;  // 🔓 reactivar
+    applyCategoryFilter(); // mostrar solo la activa
+    return true;
+  }
+
+  // --- Filtro visual por categoría ---
+  function applyCategoryFilter(){
+    $$("#rows tr").forEach(tr=>{
+      const cat = tr.dataset.cat || CAT.BIN;
+      tr.style.display = (cat === ACTIVE) ? "" : "none";
+    });
+    paintButtons();
+  }
+
+  function setActive(cat){
+    ACTIVE = (cat===CAT.ANA || cat===CAT.CMD) ? cat : CAT.BIN;
+    applyCategoryFilter();
+    localStorage.setItem(CAT_KEY, ACTIVE);  // guardo la última categoría activa
+  }
+
+  function paintButtons(){
+    const on = (el, yes)=>{
+      if (!el) return;
+      el.style.background   = yes ? "#0078d7" : "";
+      el.style.color        = yes ? "#fff"    : "";
+      el.style.border       = "1px solid #ccc";
+      el.style.borderRadius = "18px";
+      el.style.padding      = "6px 10px";
+    };
+    on($("#catAnalog"),  ACTIVE===CAT.ANA);
+    on($("#catBinary"),  ACTIVE===CAT.BIN);
+    on($("#catCommand"), ACTIVE===CAT.CMD);
+  }
+
+  // --- Autosave + etiquetar filas nuevas ---
+  function installAutosave(){
+    const tb = $("#rows"); 
+    if (!tb) return;
+
+    // Guardar cuando se escribe o cambian valores
+    tb.addEventListener("input",  ()=> saveState(), { passive:true });
+    tb.addEventListener("change", ()=> saveState(), { passive:true });
+
+    // Observar filas nuevas: si NO estamos restaurando, etiqueta con la categoría activa
+    const mo = new MutationObserver(muts=>{
+      if (RESTORING) return; // <- CLAVE: al restaurar NO se reasigna la categoría
+      muts.forEach(m=>{
+        m.addedNodes.forEach(n=>{
+          if (n && n.nodeType===1 && n.tagName==="TR") {
+            if (!n.dataset.cat) n.dataset.cat = ACTIVE;
+            // asegurar visibilidad acorde
+            n.style.display = (n.dataset.cat===ACTIVE) ? "" : "none";
+          }
+        });
+      });
+      saveState();
+    });
+    mo.observe(tb, { childList:true });
+
+    // Guardados extra por seguridad
+    window.addEventListener("beforeunload", saveState);
+    document.addEventListener("visibilitychange", ()=> {
+      if (document.visibilityState === "hidden") saveState();
+    });
+  }
+
+  function bindCategoryButtons(){
+    $("#catAnalog") ?.addEventListener("click", ()=> setActive(CAT.ANA));
+    $("#catBinary") ?.addEventListener("click", ()=> setActive(CAT.BIN));
+    $("#catCommand")?.addEventListener("click", ()=> setActive(CAT.CMD));
+  }
+
+  // --- Arranque ---
+  document.addEventListener("DOMContentLoaded", ()=>{
+    bindCategoryButtons();
+
+    // Etiquetar filas existentes (si no tienen data-cat, asume BIN)
+    $$("#rows tr").forEach(tr=>{ 
+      if (!tr.dataset.cat) tr.dataset.cat = CAT.BIN; 
+    });
+
+    // Restaurar (si hay) y sino aplicar filtro a la categoría activa guardada
+    if (!restoreState()) {
+      ACTIVE = localStorage.getItem(CAT_KEY) || CAT.BIN;
+      applyCategoryFilter();
+    }
+
+    installAutosave();
+  });
+})();
