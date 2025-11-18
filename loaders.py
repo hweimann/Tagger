@@ -13,6 +13,8 @@ LISTAS_DIR   = BASE_DIR / "data" / "listas"
 OVERRIDE_PATH = BASE_DIR / "data" / "lists_override.json"
 REGLAS_CSV   = BASE_DIR / "data" / "reglas.csv"
 REGLAS_TXT   = BASE_DIR / "data" / "reglas.txt"
+DELETED_SENTINEL = "__DELETED__"
+
 
 # ------------------ utilidades ------------------
 
@@ -60,14 +62,19 @@ def save_override_entry(family: str, key: str, value: str):
     _save_overrides(data)
 
 def delete_override_entry(family: str, key: str):
-    """Elimina una entrada de overrides."""
+    """
+    Marca una entrada como eliminada.
+    Aunque exista en el CSV, este marcador hace que se oculte igual.
+    """
     family = _norm_key(family)
     data = _load_overrides()
     fam = data.get(family, {})
-    if key in fam:
-        del fam[key]
-        data[family] = fam
-        _save_overrides(data)
+
+    # En lugar de borrar la clave, la marcamos como "borrada"
+    fam[key] = DELETED_SENTINEL
+    data[family] = fam
+    _save_overrides(data)
+
 
 def get_overrides() -> dict:
     """Devuelve el JSON de overrides tal cual (con claves ya normalizadas)."""
@@ -130,14 +137,19 @@ def load_excel():
             except Exception as e:
                 print(f"[WARN] No se pudo leer {csv_file.name}: {e}")
 
-    # aplicar overrides
+        # aplicar overrides
     overrides = _load_overrides()
     listas_map = {}
     for fam, mp in listas_raw.items():
         base = dict(mp)
         ov = overrides.get(fam, {})
         base.update(ov)
-        listas_map[fam] = base
+
+        # Filtrar entradas marcadas como borradas
+        base = {k: v for k, v in base.items() if v != DELETED_SENTINEL}
+
+        if base:
+            listas_map[fam] = base
 
     # reglas
     reglas_texto = []

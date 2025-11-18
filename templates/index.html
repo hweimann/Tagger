@@ -10,11 +10,11 @@
       --font-size: 12px;
       --cell-pad: 4px 6px;
       --colw: 88px;
-      --tagw: 260px;
-      --descw: 420px;   /* ancho Descripción */
+      --tagw: 180px;
+      --descw: 220px;   /* ancho Descripción */
       --actionsw: 90px;
       --repw: 54px;
-      --refw: 320px;    /* REF más ancha */
+      --refw: 220px;    /* REF más ancha */
     }
     body { font-family: system-ui, Arial, sans-serif; margin: 16px; font-size: var(--font-size); }
     .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
@@ -43,9 +43,42 @@
       box-sizing: border-box;
       white-space: pre-wrap;
     }
+
     @media (max-width: 1440px){
-      :root{ --font-size: 12px; --colw: 80px; --tagw: 220px; --descw: 360px; --actionsw: 80px; --repw: 48px; }
-    }
+  :root{
+    --font-size: 12px;
+    --colw: 80px;
+    --tagw: 200px;
+    --descw: 220px;   /* 👈 mantenemos la descripción angosta también en pantallas chicas */
+    --actionsw: 80px;
+    --repw: 48px;
+  }
+}
+
+/* Tooltip para la columna DESCRIPCION */
+td.desccol {
+  position: relative;
+}
+
+/* Globo al pasar el mouse por la celda de descripción */
+td.desccol:hover::after {
+  content: attr(data-fulltext);
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: rgba(0,0,0,0.9);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: normal;
+  width: max-content;
+  max-width: 420px;
+  z-index: 9999;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  font-size: 11px;
+}
+
+
   </style>
 </head>
 <body>

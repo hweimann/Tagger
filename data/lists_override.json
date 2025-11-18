@@ -5,13 +5,26 @@
     "Justo Daract": "JD",
     "El Volcan": "EV",
     "San Luis": "SL",
-    "Trapiche": "TR"
+    "Trapiche": "TR",
+    "Batavia": "BA"
   },
   "PROTECCION SECUNDARIA": {
     "prueba": "PR",
     "Prueba": "PR"
   },
   "DISPOSITIVO": {
-    "IED Sobrecorriente": "5051_"
+    "IED Sobrecorriente": "5051_",
+    "IED de sobrecorriente 13.2kv (-)": "151-",
+    "IED de sobrecorriente (-)": "51-",
+    "IED de sobrecorriente 132kv (-)": "351-",
+    "IED de sobrecorriente 33kv (-)": "251-",
+    "Interruptor señal (-)": "52-",
+    "Reconectador  de 33kv (-)": "295-",
+    "Reconectador (-)": "95-",
+    "Rectificador (-)": "RECT-",
+    "IED de sobrecorriente 13.2kv señal cableada": "__DELETED__",
+    "IED de sobrecorriente 132kv señal cableada": "__DELETED__",
+    "IED de sobrecorriente 33kv señal cableada": "__DELETED__",
+    "IED de sobrecorriente señal cableada": "__DELETED__"
   }
 }

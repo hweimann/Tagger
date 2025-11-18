@@ -43,24 +43,53 @@ function payloadFromRow(tr) {
 
 /* ====== Outputs por fila ====== */
 function setRowOutputs(tr, data) {
-  const tagCell = tr.querySelector(".tag");
+  const tagCell  = tr.querySelector(".tag");
   const descCell = tr.querySelector(".desc");
+  if (!tagCell) return;
+
+  // Si hay error: mostramos el error en el TAG, pero NO tocamos la descripción
   if (!data || (data.errors && data.errors.length)) {
-    tagCell.textContent = "—";
-    tagCell.title = (data?.errors || []).join(", ");
-    tagCell.classList.add("muted");
-    if (descCell) { descCell.textContent = "—"; descCell.title = ""; descCell.classList.add("muted"); }
-  } else {
-    tagCell.textContent = data.tag || "—";
-    tagCell.title = data.tag || "";
-    tagCell.classList.remove("muted");
-    if (descCell) {
-      descCell.textContent = data.descripcion || "—";
-      descCell.title = data.descripcion || "";
-      descCell.classList.toggle("muted", !data.descripcion);
+    const errs = (data && data.errors) || [];
+
+    // Dejamos el tag en "—" (o en lo que ya tenga) y le ponemos el error en el title
+    if (!tagCell.textContent || tagCell.textContent === "—") {
+      tagCell.textContent = "—";
     }
+    tagCell.title = errs.join(", ");
+    tagCell.classList.add("muted");
+
+    // NO tocamos descCell.textContent -> mantiene la última descripción buena
+    // (si querés, podés usar el title para mostrar también el error)
+    if (descCell) {
+      if (!descCell.title) {
+        descCell.title = errs.join(", ");
+      }
+    }
+    return;
+  }
+
+  // Respuesta OK: actualizamos TAG y DESCRIPCION normalmente
+  const tag  = data.tag || "—";
+  const desc = data.descripcion || "";
+
+  tagCell.textContent = tag;
+  tagCell.title = tag;
+  tagCell.classList.toggle("muted", !tag || tag === "—");
+
+  if (descCell) {
+    const visible = desc || "—";
+    descCell.textContent = visible;
+    descCell.title = desc || "";
+
+    // si estás usando tooltip con data-fulltext, lo mantenemos actualizado
+    try {
+      descCell.setAttribute("data-fulltext", desc || "");
+    } catch(e) {}
+
+    descCell.classList.toggle("muted", !desc);
   }
 }
+
 
 async function refreshRow(tr) {
   try {
@@ -155,40 +184,62 @@ const numero = autoField("NUMERO",                  prefill.numero_name || "");
   });
 
   // Pegado múltiple directo en REF
-  ref.addEventListener("paste", (e)=>{
-    const text = (e.clipboardData || window.clipboardData).getData("text");
-    if (!text || (!text.includes("\n") && !text.includes("\t"))) return; // un valor -> pegar normal
-    e.preventDefault();
-    const rows = parsePastedTable(text);
-    if (!rows.length) return;
-    fillRowFromArray(tr, rows[0]); refreshRow(tr);
-    for (let i=1;i<rows.length;i++){ newRow(prefillFromArray(rows[i])); }
-  });
+  //ref.addEventListener("paste", (e)=>{
+  //  const text = (e.clipboardData || window.clipboardData).getData("text");
+  //  if (!text || (!text.includes("\n") && !text.includes("\t"))) return; // un valor -> pegar normal
+  //  e.preventDefault();
+  //  const rows = parsePastedTable(text);
+  //  if (!rows.length) return;
+  //  fillRowFromArray(tr, rows[0]); refreshRow(tr);
+  //  for (let i=1;i<rows.length;i++){ newRow(prefillFromArray(rows[i])); }
+  //});
+
+  // Pegado masivo en REF
+ref.addEventListener("paste", (ev) => {
+  const text = (ev.clipboardData || window.clipboardData).getData("text") || "";
+  if (!text.includes("\n")) {
+    // Si es una sola línea, que se comporte normal
+    return;
+  }
+  // Si son varias líneas, usamos nuestro manejador especial
+  ev.preventDefault();
+  handleBulkPasteREF(tr, text);
+});
+
 
   // Repetir desde la fila anterior (mirror mientras esté tildado)
   function previousMainRow(curr){
     let prev = curr.previousElementSibling;
     return prev && prev.tagName === "TR" ? prev : null;
   }
-  function copyFromPrev(){
+
+
+    function copyFromPrev(){
     const prev = previousMainRow(tr);
     if (!prev) return;
+
     const src = prev.querySelectorAll("td");
     const dst = tr.querySelectorAll("td");
-    // copia selects + SIGLAS (idx 4). No toca REF (idx 0)
-    const selectIdx = [1,2,3,5,6,7,8,9,10];
-    selectIdx.forEach(i=>{
-      const s = src[i]?.querySelector("select");
-      const d = dst[i]?.querySelector("select");
-      if (s && d) d.value = s.value;
+
+    // Índices de columnas a copiar (NO copiamos REF = idx 0)
+    // 1: TIPO, 2: LUGAR, 3: OBJETO, 4: SIGLAS,
+    // 5: NIVEL, 6: DISPOSITIVO, 7: PROT. SEC.,
+    // 8: QUE, 9: SEÑAL, 10: NUMERO
+    const copyIdx = [1,2,3,4,5,6,7,8,9,10];
+
+    copyIdx.forEach(i => {
+      const s = src[i]?.querySelector("input,select,textarea");
+      const d = dst[i]?.querySelector("input,select,textarea");
+      if (s && d) {
+        d.value = s.value;
+      }
     });
-    const sSig = src[4]?.querySelector("input");
-    const dSig = dst[4]?.querySelector("input");
-    if (sSig && dSig) dSig.value = sSig.value;
 
     updateNivelEnabled();
     refreshRow(tr);
   }
+
+
   function bindMirror(on){
     if (tr._mirror?.handlers) {
       tr._mirror.handlers.forEach(({el, fn})=> el.removeEventListener("input", fn));
@@ -210,6 +261,60 @@ const numero = autoField("NUMERO",                  prefill.numero_name || "");
   autosizeRef();
   return tr;   // 👈 ESTA LÍNEA NUEVA
 }
+
+function handleBulkPasteREF(startRow, text) {
+  if (!startRow) return;
+
+  const tbody = document.getElementById("rows");
+  if (!tbody) return;
+
+  // Normalizamos el texto pegado a líneas limpias
+  const lines = text
+    .replace(/\r/g, "")
+    .split("\n")
+    .map(l => l.trim())
+    .filter(l => l !== "");
+
+  if (!lines.length) return;
+
+  // Usamos la misma categoría que la fila donde se pegó
+  const startCat = startRow.dataset.cat || (localStorage.getItem("tagger.activeCat.v1") || "BIN");
+
+  let current = startRow;
+
+  for (let i = 0; i < lines.length; i++) {
+    const value = lines[i];
+
+    // Si ya no hay fila, creamos una nueva
+    if (!current) {
+      const newTr = (typeof window.newRow === "function") ? window.newRow({}) : null;
+      if (!newTr) break;
+      newTr.dataset.cat = startCat;  // misma categoría que la fila origen
+      current = newTr;
+    }
+
+    // Buscamos el textarea REF en la fila actual
+    const refArea = current.querySelector("textarea.refinput");
+    if (refArea) {
+      refArea.value = value;
+      // Ajustamos alto
+      refArea.style.height = "auto";
+      refArea.style.height = refArea.scrollHeight + "px";
+    }
+
+    // Recalcular TAG y DESCRIPCIÓN de esa fila
+    if (typeof refreshRow === "function") {
+      refreshRow(current);
+    }
+
+    // Pasamos a la fila siguiente
+    current = current.nextElementSibling;
+  }
+
+  // Disparamos un evento de input en tbody para que el autosave se entere
+  tbody.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 
 /* ====== Toolbar actions ====== */
 function duplicateLastRow() {
