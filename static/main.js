@@ -1,3 +1,6 @@
+let LAST_FOCUSED_ROW = null;
+
+
 /* ====== Helpers de UI ====== */
 function opt(text) { const o = document.createElement("option"); o.value = text; o.textContent = text; return o; }
 function selectWithOptions(options) { const s = document.createElement("select"); s.appendChild(opt("")); (options||[]).forEach(v=>s.appendChild(opt(v))); return s; }
@@ -175,6 +178,14 @@ const numero = autoField("NUMERO",                  prefill.numero_name || "");
   objeto.addEventListener("change", () => { updateNivelEnabled(); refreshRow(tr); });
   objeto.addEventListener("input",  () => { updateNivelEnabled(); });
 
+    // Registrar esta fila como la "última seleccionada" cuando se enfoca un campo
+  [ref,tipo,lugar,objeto,siglas,nivel,disp,prot,que,senal,numero].forEach(el=>{
+    el.addEventListener("focus", () => {
+      LAST_FOCUSED_ROW = tr;
+    });
+  });
+
+
   // Debounce general
   [ref,tipo,lugar,objeto,siglas,nivel,disp,prot,que,senal,numero].forEach(el=>{
     el.addEventListener("input", () => {
@@ -225,7 +236,7 @@ ref.addEventListener("paste", (ev) => {
     // 1: TIPO, 2: LUGAR, 3: OBJETO, 4: SIGLAS,
     // 5: NIVEL, 6: DISPOSITIVO, 7: PROT. SEC.,
     // 8: QUE, 9: SEÑAL, 10: NUMERO
-    const copyIdx = [1,2,3,4,5,6,7,8,9,10];
+    const copyIdx = [1,2,3,4,5];
 
     copyIdx.forEach(i => {
       const s = src[i]?.querySelector("input,select,textarea");
@@ -447,7 +458,7 @@ document.addEventListener("DOMContentLoaded", init);
 const TPL2_KEY = "tagger.templates.v2";
 const TPL2 = {
   uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); },
-  state: { all: [], selectedId:null, editingId:null },
+  state: { all: [], selectedId:null, editingId:null, anchorRow:null }, /*state: { all: [], selectedId:null, editingId:null },*/
 
   load(){
     try{ const p=JSON.parse(localStorage.getItem(TPL2_KEY)||"[]"); this.state.all=Array.isArray(p)?p:[]; }
@@ -605,7 +616,7 @@ itemToPrefill(it){
   },
 
   /* ---------- Aplicar al generador ---------- */
-  apply(){
+  /*apply(){
   const t=this.state.all.find(x=>x.id===this.state.selectedId); if(!t) return;
   (t.items||[]).forEach(it => {
     const p=this.itemToPrefill(it);
@@ -617,7 +628,54 @@ itemToPrefill(it){
     });
   });
   this.close();
+},*/
+
+apply(){
+  const t = this.state.all.find(x => x.id === this.state.selectedId);
+  if (!t) return;
+
+  const tbody = document.getElementById("rows");
+  let anchor = this.state.anchorRow || null;
+
+  // Si por algún motivo la fila ancla ya no está en la tabla, ignoramos el ancla
+  if (anchor && (!tbody || !tbody.contains(anchor))) {
+    anchor = null;
+  }
+
+  let cursor = null; // última fila insertada, para mantener el orden
+
+  (t.items || []).forEach(it => {
+    const p = this.itemToPrefill(it);
+    const tr = newRow({
+      cod_disp_name: p.cod_disp_name,
+      prot_sec_name: p.prot_sec_name,
+      que_name:      p.que_name,
+      senal_name:    p.senal_name
+    });
+
+    // Si no tenemos fila ancla, dejamos el comportamiento viejo: newRow ya lo agregó al final.
+    if (!anchor || !tbody) return;
+
+    // Con ancla: movemos la fila recién creada a la posición correcta
+    if (!cursor) {
+      // Primera fila del template: va antes de la fila ancla
+      tbody.insertBefore(tr, anchor);
+    } else {
+      // Siguientes filas: se insertan después de la última insertada
+      if (cursor.nextSibling) {
+        tbody.insertBefore(tr, cursor.nextSibling);
+      } else {
+        tbody.appendChild(tr);
+      }
+    }
+    cursor = tr;
+  });
+
+  // Limpiamos la referencia
+  this.state.anchorRow = null;
+  this.close();
 },
+
 
   export(){
     const blob=new Blob([JSON.stringify(this.state.all,null,2)],{type:"application/json"});
@@ -635,7 +693,13 @@ itemToPrefill(it){
   bindUI(){
     this.load();
     const $=id=>document.getElementById(id);
-    $("tpl2Open")?.addEventListener("click",()=>this.open());
+    /* $("tpl2Open")?.addEventListener("click",()=>this.open());*/
+    $("tpl2Open")?.addEventListener("click",()=>{
+  // Usamos la última fila donde el usuario tuvo foco
+  this.state.anchorRow = LAST_FOCUSED_ROW || null;
+  this.open();
+    });
+
     $("tpl2Close")?.addEventListener("click",()=>this.close());
     $("tpl2Search")?.addEventListener("input",()=>this.renderList());
     $("tpl2Apply")?.addEventListener("click",()=>this.apply());
