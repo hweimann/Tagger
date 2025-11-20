@@ -1,4 +1,4 @@
-let LAST_FOCUSED_ROW = null;
+//let LAST_FOCUSED_ROW = null;
 
 
 /* ====== Helpers de UI ====== */
@@ -15,6 +15,8 @@ function famOptions(name){
 }
 function normalizeAcentosMayus(s){ return (s||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().trim(); }
 function isTransformador(text){ return normalizeAcentosMayus(text).includes("TRANSFORMADOR"); }
+
+let LAST_FOCUSED_ROW = null;  // 👈 nueva variable global
 
 /* ====== Backend ====== */
 async function generateOne(payload) {
@@ -179,13 +181,20 @@ const numero = autoField("NUMERO",                  prefill.numero_name || "");
   objeto.addEventListener("input",  () => { updateNivelEnabled(); });
 
     // Registrar esta fila como la "última seleccionada" cuando se enfoca un campo
+  //[ref,tipo,lugar,objeto,siglas,nivel,disp,prot,que,senal,numero].forEach(el=>{
+   // el.addEventListener("focus", () => {
+   //   LAST_FOCUSED_ROW = tr;
+   // });
+  //});
+
+  // Registrar esta fila como "última activa" cuando se enfoca un campo
   [ref,tipo,lugar,objeto,siglas,nivel,disp,prot,que,senal,numero].forEach(el=>{
     el.addEventListener("focus", () => {
       LAST_FOCUSED_ROW = tr;
     });
   });
 
-
+ 
   // Debounce general
   [ref,tipo,lugar,objeto,siglas,nivel,disp,prot,que,senal,numero].forEach(el=>{
     el.addEventListener("input", () => {
@@ -327,13 +336,49 @@ function handleBulkPasteREF(startRow, text) {
 }
 
 
-/* ====== Toolbar actions ====== */
-function duplicateLastRow() {
-  const rows = document.querySelectorAll("#rows tr");
-  if (!rows.length) return newRow({});
-  const last = rows[rows.length - 1];
-  newRow(payloadFromRow(last));
+function insertAfterRow(anchor, row) {
+  const tbody = document.getElementById("rows");
+  if (!tbody || !anchor || !row) return;
+  if (!tbody.contains(anchor) || !tbody.contains(row)) return;
+
+  const next = anchor.nextElementSibling;
+  if (next) {
+    tbody.insertBefore(row, next);
+  } else {
+    tbody.appendChild(row);
+  }
 }
+
+
+/* ====== Toolbar actions ====== */
+
+function duplicateLastRow() {
+  const tbody = document.getElementById("rows");
+  if (!tbody) return;
+
+  const rows = tbody.querySelectorAll("tr");
+  if (!rows.length) {
+    newRow({});
+    return;
+  }
+
+  // Fila origen: si hay una fila activa, usamos esa; si no, la última
+  let source = null;
+  if (LAST_FOCUSED_ROW && tbody.contains(LAST_FOCUSED_ROW)) {
+    source = LAST_FOCUSED_ROW;
+  } else {
+    source = rows[rows.length - 1];
+  }
+
+  // Crear la fila duplicada
+  const clone = newRow(payloadFromRow(source));
+
+  // Insertar debajo de la fila origen (si tiene sentido)
+  if (tbody.contains(source) && tbody.contains(clone)) {
+    insertAfterRow(source, clone);
+  }
+}
+
 
 function clearAllRows() {
   const tbody = document.getElementById("rows");
@@ -436,7 +481,20 @@ function applyCompact(on){ document.body.dataset.compact = on ? "1" : "0"; }
 /* ====== Init ====== */
 function init() {
    // TPL_bindUI();
-document.getElementById("add").addEventListener("click", ()=> newRow({}));
+//document.getElementById("add").addEventListener("click", ()=> newRow({}));
+
+  document.getElementById("add").addEventListener("click", ()=> {
+    const tr = newRow({});   // se crea al final (como siempre)
+    const tbody = document.getElementById("rows");
+    const anchor = LAST_FOCUSED_ROW;
+
+    // Si hay una fila "activa" válida, movemos la nueva debajo de esa
+    if (anchor && tbody && tbody.contains(anchor) && tbody.contains(tr)) {
+      insertAfterRow(anchor, tr);
+    }
+    // Si no hay fila activa, se queda al final como antes
+  });
+
   document.getElementById("dup").addEventListener("click", duplicateLastRow);
   document.getElementById("clear").addEventListener("click", clearAllRows);
   document.getElementById("exportCsv").addEventListener("click", exportCsv);
