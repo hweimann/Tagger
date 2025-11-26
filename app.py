@@ -70,6 +70,8 @@ def api_generate():
         disp_token = "I>>"
     elif "sobrecorriente general" in dn:
         disp_token = "general"
+    elif "reconectador" in dn:
+        disp_token = ""    
     else:
         disp_token = payload["DISPOSITIVO"]  # fallback: código
 

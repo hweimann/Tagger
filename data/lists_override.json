@@ -27,5 +27,9 @@
     "IED de sobrecorriente 132kv señal cableada": "__DELETED__",
     "IED de sobrecorriente 33kv señal cableada": "__DELETED__",
     "IED de sobrecorriente señal cableada": "__DELETED__"
+  },
+  "QUE": {
+    "INICIADO": "INI",
+    "RBC INICIADO": "__DELETED__"
   }
 }

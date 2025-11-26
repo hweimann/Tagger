@@ -4,6 +4,7 @@
 /* ====== Helpers de UI ====== */
 function opt(text) { const o = document.createElement("option"); o.value = text; o.textContent = text; return o; }
 function selectWithOptions(options) { const s = document.createElement("select"); s.appendChild(opt("")); (options||[]).forEach(v=>s.appendChild(opt(v))); return s; }
+
 function famOptions(name){
   const tries = [
     name, name.replace(/_/g," "), name.replace(/ /g,"_"),
@@ -13,6 +14,49 @@ function famOptions(name){
   for (const t of tries){ if (FAMILIAS[t]) return FAMILIAS[t]; }
   return [];
 }
+
+// --- Códigos de listas para TAG previo en templates ---
+let LIST_CODES = null;   // acá guardamos lo que trae /api/lists
+
+function initListCodes(){
+  if (LIST_CODES !== null) return;  // ya cargado o ya intentado
+
+  fetch("/api/lists")
+    .then(r => r.json())
+    .then(j => {
+      LIST_CODES = j.lists || {};   // { familia: { nombre: codigo } }
+    })
+    .catch(err => {
+      console.error("No se pudieron cargar los códigos de listas:", err);
+      LIST_CODES = {};              // para no reintentar infinitamente
+    });
+}
+
+// Devuelve el CÓDIGO asociado a un nombre en una familia.
+// Si no lo encuentra, devuelve el propio nombre.
+function getCodeFromLists(fam, displayName){
+  const name = (displayName || "").trim();
+  if (!name) return "";
+
+  if (LIST_CODES){
+    const tries = [
+      fam,
+      fam.replace(/_/g," "),
+      fam.replace(/ /g,"_"),
+      fam.normalize("NFD").replace(/[\u0300-\u036f]/g,""),
+      fam.replace(/ /g,"_").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    ];
+    for (const t of tries){
+      const mp = LIST_CODES[t];
+      if (mp && Object.prototype.hasOwnProperty.call(mp, name)){
+        return mp[name] || name;
+      }
+    }
+  }
+  // si todavía no está LIST_CODES o no hay código, devolvemos el nombre
+  return name;
+}
+
 function normalizeAcentosMayus(s){ return (s||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().trim(); }
 function isTransformador(text){ return normalizeAcentosMayus(text).includes("TRANSFORMADOR"); }
 
@@ -577,29 +621,75 @@ itemToPrefill(it){
 },
 
   /* ---------- Editor (4 columnas) ---------- */
-  addItemRow(it={}){
-    const items=document.getElementById("tpl2Items");
-    const tr=document.createElement("tr");
-
-    //const disp=this.mkSelect("DISPOSITIVO");
-    //const prot=this.mkSelect("PROTECCION SECUNDARIA");
-    //const que=this.mkSelect("QUE");
-    //const senal=this.mkSelect("SEÑAL");
+   addItemRow(it={}){
+    const items = document.getElementById("tpl2Items");
+    const tr    = document.createElement("tr");
 
     const disp  = autoField("DISPOSITIVO");
     const prot  = autoField("PROTECCION SECUNDARIA");
     const que   = autoField("QUE");
     const senal = autoField("SEÑAL");
 
-    const p=this.itemToPrefill(it);
-    disp.value=p.cod_disp_name; prot.value=p.prot_sec_name; que.value=p.que_name; senal.value=p.senal_name;
+    const p = this.itemToPrefill(it);
+    disp.value  = p.cod_disp_name;
+    prot.value  = p.prot_sec_name;
+    que.value   = p.que_name;
+    senal.value = p.senal_name;
 
-    tr.innerHTML=`<td class="idx"></td>`;
-    [disp,prot,que,senal].forEach(el=>{ const td=document.createElement("td"); td.appendChild(el); tr.appendChild(td); });
-    const tdAct=document.createElement("td"); const del=document.createElement("button"); del.textContent="Eliminar";
-    del.onclick=()=>{ tr.remove(); this.reindex(); }; tdAct.appendChild(del); tr.appendChild(tdAct);
+    // Columna índice
+    tr.innerHTML = `<td class="idx"></td>`;
 
-    items.appendChild(tr); this.reindex();
+    // Columnas editables
+    [disp,prot,que,senal].forEach(el=>{
+      const td = document.createElement("td");
+      td.appendChild(el);
+      tr.appendChild(td);
+    });
+
+    // Columna TAG previo
+    const tdTag = document.createElement("td");
+    tdTag.className = "tpl2Tag";
+    tdTag.style.fontFamily = "monospace";
+    tdTag.style.whiteSpace = "nowrap";
+    tr.appendChild(tdTag);
+
+    // Columna acciones
+    const tdAct = document.createElement("td");
+    const del   = document.createElement("button");
+    del.textContent = "Eliminar";
+    del.onclick = () => {
+      tr.remove();
+      this.reindex();
+    };
+    tdAct.appendChild(del);
+    tr.appendChild(tdAct);
+
+    items.appendChild(tr);
+    this.reindex();
+
+    // Actualiza el TAG previo [DISP][PROT][QUE][SEÑAL] usando códigos
+    const updateTag = () => {
+  const dCode = getCodeFromLists("DISPOSITIVO",            disp.value);
+  const pCode = getCodeFromLists("PROTECCION SECUNDARIA",  prot.value);
+  const qCode = getCodeFromLists("QUE",                    que.value);
+  const sCode = getCodeFromLists("SEÑAL",                  senal.value);
+
+  const parts = [];
+  if (dCode) parts.push(dCode);
+  if (pCode) parts.push(pCode);
+  if (qCode) parts.push(qCode);
+  if (sCode) parts.push(sCode);
+
+  // Sin corchetes, separado por espacio (podés usar "-" si preferís)
+  tdTag.textContent = parts.join("") || "—";
+  };
+
+    [disp,prot,que,senal].forEach(el=>{
+      el.addEventListener("input",  updateTag);
+      el.addEventListener("change", updateTag);
+    });
+
+    updateTag();
   },
 
 
@@ -755,6 +845,7 @@ apply(){
     $("tpl2Open")?.addEventListener("click",()=>{
   // Usamos la última fila donde el usuario tuvo foco
   this.state.anchorRow = LAST_FOCUSED_ROW || null;
+  initListCodes();   // 👈 dispara la carga de códigos (si no se hizo aún)
   this.open();
     });
 
