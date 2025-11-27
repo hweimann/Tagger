@@ -1,0 +1,30 @@
+[
+  {
+    "id": "vef9hyuqetmig0dbu3",
+    "nombre": "Reconectador Cooper de linea",
+    "descripcion": "",
+    "tags": [],
+    "items": [
+      {
+        "cod_disp_name": "Reconectador",
+        "prot_sec_name": "",
+        "que_name": "LLAVE",
+        "senal_name": ""
+      }
+    ]
+  },
+  {
+    "id": "3gmldc55br4mig0bxt0",
+    "nombre": "Reconectador Noja sobre linea",
+    "descripcion": "",
+    "tags": [],
+    "items": [
+      {
+        "cod_disp_name": "Reconectador",
+        "prot_sec_name": "",
+        "que_name": "INTERRUPTOR",
+        "senal_name": "ESTADO"
+      }
+    ]
+  }
+]

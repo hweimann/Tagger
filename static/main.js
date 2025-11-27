@@ -562,11 +562,55 @@ const TPL2 = {
   uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); },
   state: { all: [], selectedId:null, editingId:null, anchorRow:null }, /*state: { all: [], selectedId:null, editingId:null },*/
 
-  load(){
-    try{ const p=JSON.parse(localStorage.getItem(TPL2_KEY)||"[]"); this.state.all=Array.isArray(p)?p:[]; }
-    catch{ this.state.all=[]; }
+    load(){
+    // Primero intentamos cargar desde el servidor
+    fetch("/api/templates")
+      .then(r => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(data => {
+        const arr = Array.isArray(data?.templates)
+          ? data.templates
+          : (Array.isArray(data) ? data : []);
+
+        this.state.all = arr;
+        // re-render por si ya está abierto el diálogo
+        if (this.renderList)  this.renderList();
+        if (this.renderPreview) this.renderPreview();
+      })
+      .catch(err => {
+        console.warn("Fallo al cargar templates del servidor, uso localStorage:", err);
+        try {
+          const p = JSON.parse(localStorage.getItem(TPL2_KEY) || "[]");
+          this.state.all = Array.isArray(p) ? p : [];
+        } catch(e) {
+          this.state.all = [];
+        }
+      });
   },
-  save(){ localStorage.setItem(TPL2_KEY, JSON.stringify(this.state.all)); },
+
+
+   save(){
+    const payload = { templates: this.state.all };
+
+    // Guardar en el servidor
+    fetch("/api/templates/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).catch(err => {
+      console.error("No se pudo guardar templates en el servidor:", err);
+    });
+
+    // Copia local como backup
+    try {
+      localStorage.setItem(TPL2_KEY, JSON.stringify(this.state.all));
+    } catch(e) {
+      console.warn("No se pudo escribir en localStorage:", e);
+    }
+  },
+
 
   // Solo 4 campos
 itemToPrefill(it){

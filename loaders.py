@@ -1,6 +1,7 @@
 import json
 import pandas as pd
 import unicodedata, re as _re
+import csv
 from pathlib import Path
 
 # --- Config base_dir (si tienes config.py con BASE_DIR, puedes importar de ahí) ---
@@ -13,6 +14,7 @@ LISTAS_DIR   = BASE_DIR / "data" / "listas"
 OVERRIDE_PATH = BASE_DIR / "data" / "lists_override.json"
 REGLAS_CSV   = BASE_DIR / "data" / "reglas.csv"
 REGLAS_TXT   = BASE_DIR / "data" / "reglas.txt"
+TEMPLATES_PATH = BASE_DIR / "data" / "templates.json"
 DELETED_SENTINEL = "__DELETED__"
 
 
@@ -34,16 +36,66 @@ def _norm_key(k: str) -> str:
         s = "NUMERO"
     return s
 
+def _csv_path_for_family(family: str) -> Path:
+    """
+    Devuelve el path del CSV para una familia dada.
+    Ej.: family="DISPOSITIVO" → data/listas/dispositivo.csv
+    """
+    fam = _norm_key(family)   # DISPOSITIVO, LUGAR, QUE, etc.
+    filename = fam.lower() + ".csv"
+    return LISTAS_DIR / filename
+
+
+def _read_family_csv(family: str) -> dict[str, str]:
+    """
+    Lee el CSV de una familia y devuelve {valor: codigo}.
+    Intenta aceptar encabezados 'valor/codigo' o 'VALOR/CODIGO'.
+    """
+    path = _csv_path_for_family(family)
+    result: dict[str, str] = {}
+    if not path.exists():
+        return result
+
+    with path.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        # Auto-detectar nombres de columnas
+        field_val = None
+        field_cod = None
+        if reader.fieldnames:
+            names = [n.lower() for n in reader.fieldnames]
+            for i, n in enumerate(names):
+                if n in ("valor", "nombre", "texto"):
+                    field_val = reader.fieldnames[i]
+                if n in ("codigo", "código", "code"):
+                    field_cod = reader.fieldnames[i]
+        for row in reader:
+            k = (row.get(field_val) or "").strip() if field_val else ""
+            v = (row.get(field_cod) or "").strip() if field_cod else ""
+            if k:
+                result[k] = v
+    return result
+
+
+def _write_family_csv(family: str, mapping: dict[str, str]) -> None:
+    """
+    Escribe el CSV de una familia usando encabezados 'valor,codigo'.
+    Deja las filas ordenadas alfabéticamente por valor.
+    """
+    path = _csv_path_for_family(family)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    fieldnames = ["valor", "codigo"]
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for k in sorted(mapping.keys(), key=lambda s: s.lower()):
+            writer.writerow({"valor": k, "codigo": mapping[k]})
+
+
 def _load_overrides() -> dict:
-    if OVERRIDE_PATH.exists():
-        try:
-            with open(OVERRIDE_PATH, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                # normalizamos claves por si vinieron “raras”
-                return {_norm_key(k): v for k, v in (data or {}).items()}
-        except Exception:
-            return {}
+    """Compatibilidad: ya no usamos overrides, devolvemos dict vacío."""
     return {}
+
 
 def _save_overrides(data: dict):
     OVERRIDE_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -53,32 +105,54 @@ def _save_overrides(data: dict):
 # ------------------ API pública pedida por app.py ------------------
 
 def save_override_entry(family: str, key: str, value: str):
-    """Agrega/actualiza una entrada en overrides (pisa al CSV)."""
+    """
+    Guarda/actualiza una entrada directamente en el CSV de la familia.
+    - family: nombre de la familia (TIPO, LUGAR, DISPOSITIVO, etc.)
+    - key: valor visible en la lista (texto)
+    - value: código asociado
+    """
     family = _norm_key(family)
-    data = _load_overrides()
-    fam = data.get(family, {})
-    fam[key] = value
-    data[family] = fam
-    _save_overrides(data)
+    data = _read_family_csv(family)
+    data[key] = value
+    _write_family_csv(family, data)
+
 
 def delete_override_entry(family: str, key: str):
     """
-    Marca una entrada como eliminada.
-    Aunque exista en el CSV, este marcador hace que se oculte igual.
+    Elimina una entrada del CSV de la familia.
+    Si el valor no existe, no hace nada.
     """
     family = _norm_key(family)
-    data = _load_overrides()
-    fam = data.get(family, {})
+    data = _read_family_csv(family)
+    if key in data:
+        del data[key]
+        _write_family_csv(family, data)
 
-    # En lugar de borrar la clave, la marcamos como "borrada"
-    fam[key] = DELETED_SENTINEL
-    data[family] = fam
-    _save_overrides(data)
 
 
 def get_overrides() -> dict:
-    """Devuelve el JSON de overrides tal cual (con claves ya normalizadas)."""
-    return _load_overrides()
+    return {}
+
+
+def load_templates() -> list:
+    """Carga la lista de templates globales desde data/templates.json."""
+    if TEMPLATES_PATH.exists():
+        try:
+            with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                # esperamos una lista de objetos
+                return data if isinstance(data, list) else []
+        except Exception:
+            return []
+    return []
+
+
+def save_templates(templates: list):
+    """Guarda la lista completa de templates globales."""
+    TEMPLATES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(TEMPLATES_PATH, "w", encoding="utf-8") as f:
+        json.dump(templates, f, ensure_ascii=False, indent=2)
+
 
 # ------------------ loader principal ------------------
 
@@ -137,19 +211,9 @@ def load_excel():
             except Exception as e:
                 print(f"[WARN] No se pudo leer {csv_file.name}: {e}")
 
-        # aplicar overrides
-    overrides = _load_overrides()
-    listas_map = {}
-    for fam, mp in listas_raw.items():
-        base = dict(mp)
-        ov = overrides.get(fam, {})
-        base.update(ov)
+          # Ya no usamos overrides: las listas se leen directo de los CSV
+    listas_map = {fam: dict(mp) for fam, mp in listas_raw.items()}
 
-        # Filtrar entradas marcadas como borradas
-        base = {k: v for k, v in base.items() if v != DELETED_SENTINEL}
-
-        if base:
-            listas_map[fam] = base
 
     # reglas
     reglas_texto = []

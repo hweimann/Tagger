@@ -6,7 +6,10 @@ from loaders import (
     get_overrides,
     LISTAS_DIR,
     _norm_key,
+    load_templates,
+    save_templates,
 )
+
 from tagger import generate_tag
 
 app = Flask(__name__)
@@ -149,6 +152,38 @@ def api_lists_delete():
     global LISTAS_MAP, REGLAS_TEXTO, _
     LISTAS_MAP, REGLAS_TEXTO, _ = load_excel()
     return jsonify({"ok": True})
+
+
+# ---------- Templates globales (TEMPLATES v2) ----------
+
+@app.get("/api/templates")
+def api_templates_list():
+    """
+    Devuelve la lista completa de templates.
+    No hay separación por usuario, todos comparten los mismos.
+    """
+    return jsonify(load_templates())
+
+
+@app.post("/api/templates/save")
+def api_templates_save():
+    """
+    Guarda la lista completa de templates.
+    Espera un JSON con {"templates": [...]} o directamente una lista.
+    """
+    data = request.get_json(force=True)
+
+    if isinstance(data, dict) and "templates" in data:
+        templates = data.get("templates")
+    else:
+        templates = data
+
+    if not isinstance(templates, list):
+        return jsonify({"ok": False, "error": "Se esperaba una lista de templates"}), 400
+
+    save_templates(templates)
+    return jsonify({"ok": True})
+
 
 # ---------- Debug opcional ----------
 @app.get("/api/debug-familias")
